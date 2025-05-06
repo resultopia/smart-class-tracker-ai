@@ -1,27 +1,47 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
-import { addUser, UserRole } from "@/lib/data";
+import { addUser, deleteUser, UserRole, getAllUsers, User } from "@/lib/data";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Trash2, Plus } from "lucide-react";
 
 const Register = () => {
-  const [userId, setUserId] = useState("");
-  const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("student");
+  const [users, setUsers] = useState<User[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newUserId, setNewUserId] = useState("");
+  const [newName, setNewName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // Load users when component mounts
+  useEffect(() => {
+    setUsers(getAllUsers());
+  }, []);
+
+  // Filter users by selected role
+  const filteredUsers = users.filter(user => user.role === role);
+
+  const handleAddUser = () => {
+    if (!newUserId.trim() || !newName.trim()) {
+      toast({
+        title: "Error",
+        description: "User ID and Name are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const success = addUser({
-      userId,
-      name,
+      userId: newUserId,
+      name: newName,
       password: "lol", // Hardcoded password as specified
       role,
     });
@@ -29,46 +49,118 @@ const Register = () => {
     if (success) {
       toast({
         title: "Registration Successful",
-        description: `You have been registered as a ${role}.`,
+        description: `New ${role} "${newName}" has been added.`,
       });
-      navigate("/");
+      
+      // Refresh users list
+      setUsers(getAllUsers());
+      
+      // Reset form and close dialog
+      setNewUserId("");
+      setNewName("");
+      setIsAddDialogOpen(false);
+    }
+  };
+
+  const handleDeleteUser = (userId: string, userName: string) => {
+    const success = deleteUser(userId);
+    
+    if (success) {
+      toast({
+        title: "User Deleted",
+        description: `${userName} (${userId}) has been removed.`,
+      });
+      
+      // Refresh users list
+      setUsers(getAllUsers());
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <Card className="w-[350px] shadow-lg">
+    <div className="min-h-screen flex flex-col items-center bg-slate-50 p-4">
+      <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Register New User</CardTitle>
+          <CardTitle className="text-2xl">User Management</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="role">Register As</Label>
-              <RadioGroup 
-                defaultValue="student" 
-                value={role} 
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="student" id="reg-student" />
-                  <Label htmlFor="reg-student">Student</Label>
+        <CardContent className="space-y-6">
+          {/* Role Toggle */}
+          <div className="flex justify-center mb-6">
+            <ToggleGroup type="single" value={role} onValueChange={(value) => value && setRole(value as UserRole)}>
+              <ToggleGroupItem value="student" aria-label="Toggle students">
+                Students
+              </ToggleGroupItem>
+              <ToggleGroupItem value="teacher" aria-label="Toggle teachers">
+                Teachers
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          
+          {/* User List */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <CardTitle className="text-xl">{role === "student" ? "Students" : "Teachers"}</CardTitle>
+              <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="ml-auto">
+                <Plus className="mr-2" size={16} />
+                Add {role === "student" ? "Student" : "Teacher"}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {filteredUsers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.userId}>
+                        <TableCell>{user.userId}</TableCell>
+                        <TableCell>{user.name}</TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.userId, user.name)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  No {role}s found. Add some using the button above.
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="teacher" id="reg-teacher" />
-                  <Label htmlFor="reg-teacher">Teacher</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
+              )}
+            </CardContent>
+          </Card>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button variant="link" onClick={() => navigate("/")}>
+            Back to Login
+          </Button>
+        </CardFooter>
+      </Card>
+      
+      {/* Add User Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New {role === "student" ? "Student" : "Teacher"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="userId">User ID</Label>
               <Input 
                 id="userId" 
-                value={userId} 
-                onChange={(e) => setUserId(e.target.value)} 
-                placeholder="Enter your user ID" 
+                value={newUserId} 
+                onChange={(e) => setNewUserId(e.target.value)} 
+                placeholder="Enter user ID" 
                 required 
               />
             </div>
@@ -77,9 +169,9 @@ const Register = () => {
               <Label htmlFor="name">Full Name</Label>
               <Input 
                 id="name" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="Enter your full name" 
+                value={newName} 
+                onChange={(e) => setNewName(e.target.value)} 
+                placeholder="Enter full name" 
                 required 
               />
             </div>
@@ -87,16 +179,13 @@ const Register = () => {
             <div className="text-sm text-muted-foreground">
               Note: All passwords are set to "lol" by default.
             </div>
-            
-            <Button type="submit" className="w-full">Register</Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button variant="link" onClick={() => navigate("/")}>
-            Back to Login
-          </Button>
-        </CardFooter>
-      </Card>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddUser}>Add {role === "student" ? "Student" : "Teacher"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

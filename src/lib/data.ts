@@ -1,4 +1,3 @@
-
 import { toast } from "@/components/ui/use-toast";
 
 // Types
@@ -90,6 +89,43 @@ export const addUser = (newUser: Omit<User, "password"> & { password: string }) 
     password: newUser.password,
     role: newUser.role,
   });
+  
+  return true;
+};
+
+// Delete user
+export const deleteUser = (userId: string) => {
+  // First check if user exists
+  const user = users.find((user) => user.userId === userId);
+  if (!user) {
+    toast({
+      title: "Error",
+      description: `User ID '${userId}' does not exist.`,
+      variant: "destructive",
+    });
+    return false;
+  }
+  
+  // If user is a teacher, check if they're associated with any classes
+  if (user.role === "teacher" && classes.some((c) => c.teacherId === userId)) {
+    toast({
+      title: "Error",
+      description: `Cannot delete teacher '${userId}' as they are associated with classes.`,
+      variant: "destructive",
+    });
+    return false;
+  }
+  
+  // If user is a student, remove them from any classes
+  if (user.role === "student") {
+    classes = classes.map((c) => ({
+      ...c,
+      studentIds: c.studentIds.filter((id) => id !== userId),
+    }));
+  }
+  
+  // Remove the user
+  users = users.filter((user) => user.userId !== userId);
   
   return true;
 };
