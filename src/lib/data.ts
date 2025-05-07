@@ -87,6 +87,25 @@ const saveClasses = () => {
   localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
 };
 
+// Storage event listener to sync data across tabs/windows
+window.addEventListener('storage', (event) => {
+  if (event.key === USERS_STORAGE_KEY) {
+    // Update users from another tab/window
+    const newUsers = JSON.parse(event.newValue || '[]');
+    users = newUsers;
+  } else if (event.key === CLASSES_STORAGE_KEY) {
+    // Update classes from another tab/window
+    const parsedClasses = JSON.parse(event.newValue || '[]');
+    classes = parsedClasses.map((cls: any) => ({
+      ...cls,
+      attendanceRecords: cls.attendanceRecords.map((record: any) => ({
+        ...record,
+        timestamp: new Date(record.timestamp)
+      }))
+    }));
+  }
+});
+
 // Get all users
 export const getAllUsers = () => {
   return [...users];
@@ -104,6 +123,10 @@ export const getUserById = (userId: string) => {
 
 // Authenticate user
 export const authenticateUser = (userId: string, password: string) => {
+  // Refresh data from localStorage before authentication
+  const refreshedData = initializeData();
+  users = refreshedData.users;
+  
   const user = users.find((user) => user.userId === userId);
   
   if (!user) {
@@ -119,6 +142,10 @@ export const authenticateUser = (userId: string, password: string) => {
 
 // Add new user
 export const addUser = (newUser: Omit<User, "password"> & { password: string }) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  users = refreshedData.users;
+  
   if (users.some((user) => user.userId === newUser.userId)) {
     toast({
       title: "Error",
@@ -143,6 +170,11 @@ export const addUser = (newUser: Omit<User, "password"> & { password: string }) 
 
 // Delete user
 export const deleteUser = (userId: string) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  users = refreshedData.users;
+  classes = refreshedData.classes;
+  
   // First check if user exists
   const user = users.find((user) => user.userId === userId);
   if (!user) {
@@ -185,16 +217,28 @@ export const deleteUser = (userId: string) => {
 
 // Get all classes for a teacher
 export const getTeacherClasses = (teacherId: string) => {
+  // Refresh data from localStorage
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
   return classes.filter((c) => c.teacherId === teacherId);
 };
 
 // Get active class for a student
 export const getStudentActiveClass = (studentId: string) => {
+  // Refresh data from localStorage
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
   return classes.find((c) => c.isActive && c.studentIds.includes(studentId));
 };
 
 // Create new class
 export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanceRecords">) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
   const classId = `class${classes.length + 1}`;
   
   classes.push({
@@ -214,6 +258,10 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
 
 // Delete a class
 export const deleteClass = (classId: string, teacherId: string) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
   // Find the class
   const classToDelete = classes.find((c) => c.id === classId);
   
@@ -262,6 +310,10 @@ export const deleteClass = (classId: string, teacherId: string) => {
 
 // Toggle class active status
 export const toggleClassStatus = (classId: string, teacherId: string) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
   // If we're trying to activate a class, first deactivate any active classes from this teacher
   const classToToggle = classes.find((c) => c.id === classId);
   if (!classToToggle || classToToggle.teacherId !== teacherId) {
@@ -288,6 +340,10 @@ export const toggleClassStatus = (classId: string, teacherId: string) => {
 
 // Mark attendance
 export const markAttendance = (classId: string, studentId: string) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
   const classObj = classes.find((c) => c.id === classId);
   
   if (!classObj || !classObj.isActive || !classObj.studentIds.includes(studentId)) {
@@ -318,3 +374,4 @@ export const verifyFaceIdentity = async (imageUrl: string, userId: string): Prom
   
   return Math.random() > 0.2; // 80% success rate
 };
+
