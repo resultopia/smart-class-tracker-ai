@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Class, toggleClassStatus } from "@/lib/data";
+import { Class, toggleClassStatus, deleteClass } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Trash2 } from "lucide-react";
 import AttendanceList from "./AttendanceList";
 
 interface ClassCardProps {
@@ -17,6 +18,7 @@ interface ClassCardProps {
 const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => {
   const { toast } = useToast();
   const [showAttendance, setShowAttendance] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleToggleStatus = () => {
     const success = toggleClassStatus(classData.id, teacherId);
@@ -35,6 +37,15 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         description: "Could not change the class status.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteClass = () => {
+    const success = deleteClass(classData.id, teacherId);
+    
+    if (success) {
+      setShowDeleteConfirm(false);
+      onStatusChange();
     }
   };
 
@@ -58,13 +69,25 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           </p>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowAttendance(true)}
-            disabled={classData.attendanceRecords.length === 0}
-          >
-            View Attendance
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAttendance(true)}
+              disabled={classData.attendanceRecords.length === 0}
+            >
+              View Attendance
+            </Button>
+            
+            {!classData.isActive && (
+              <Button 
+                variant="destructive" 
+                size="icon"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 size={16} />
+              </Button>
+            )}
+          </div>
           <Button 
             variant={classData.isActive ? "destructive" : "default"} 
             onClick={handleToggleStatus}
@@ -74,12 +97,29 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         </CardFooter>
       </Card>
 
+      {/* Attendance Dialog */}
       <Dialog open={showAttendance} onOpenChange={setShowAttendance}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Attendance for {classData.name}</DialogTitle>
           </DialogHeader>
           <AttendanceList attendanceRecords={classData.attendanceRecords} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Class</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{classData.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteClass}>Delete</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

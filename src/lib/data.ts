@@ -1,3 +1,4 @@
+
 import { toast } from "@/components/ui/use-toast";
 
 // Types
@@ -154,6 +155,51 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
   });
   
   return classId;
+};
+
+// Delete a class
+export const deleteClass = (classId: string, teacherId: string) => {
+  // Find the class
+  const classToDelete = classes.find((c) => c.id === classId);
+  
+  // Check if the class exists and belongs to the teacher
+  if (!classToDelete) {
+    toast({
+      title: "Error",
+      description: "Class not found.",
+      variant: "destructive",
+    });
+    return false;
+  }
+  
+  if (classToDelete.teacherId !== teacherId) {
+    toast({
+      title: "Error",
+      description: "You don't have permission to delete this class.",
+      variant: "destructive",
+    });
+    return false;
+  }
+  
+  // Check if the class is active
+  if (classToDelete.isActive) {
+    toast({
+      title: "Error",
+      description: "Cannot delete an active class. Please stop the class first.",
+      variant: "destructive",
+    });
+    return false;
+  }
+  
+  // Remove the class
+  classes = classes.filter((c) => c.id !== classId);
+  
+  toast({
+    title: "Success",
+    description: "Class has been deleted successfully.",
+  });
+  
+  return true;
 };
 
 // Toggle class active status
