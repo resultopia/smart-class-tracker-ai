@@ -25,14 +25,18 @@ export interface AttendanceRecord {
   timestamp: Date;
 }
 
-// Mock storage
-let users: User[] = [
+// Local storage keys
+const USERS_STORAGE_KEY = 'smart-class-tracker-users';
+const CLASSES_STORAGE_KEY = 'smart-class-tracker-classes';
+
+// Default data
+const defaultUsers: User[] = [
   { userId: "teacher1", name: "John Doe", password: "lol", role: "teacher" },
   { userId: "student1", name: "Alice Smith", password: "lol", role: "student" },
   { userId: "student2", name: "Bob Johnson", password: "lol", role: "student" },
 ];
 
-let classes: Class[] = [
+const defaultClasses: Class[] = [
   {
     id: "class1",
     name: "Introduction to Computer Science",
@@ -42,6 +46,46 @@ let classes: Class[] = [
     attendanceRecords: [],
   },
 ];
+
+// Initialize or load data from localStorage
+const initializeData = () => {
+  // Load users or use defaults
+  const storedUsersJSON = localStorage.getItem(USERS_STORAGE_KEY);
+  let users: User[] = storedUsersJSON ? JSON.parse(storedUsersJSON) : defaultUsers;
+  
+  // Load classes or use defaults
+  const storedClassesJSON = localStorage.getItem(CLASSES_STORAGE_KEY);
+  let classes: Class[] = [];
+  
+  if (storedClassesJSON) {
+    // Need to restore Date objects which are serialized as strings in JSON
+    const parsedClasses = JSON.parse(storedClassesJSON);
+    classes = parsedClasses.map((cls: any) => ({
+      ...cls,
+      attendanceRecords: cls.attendanceRecords.map((record: any) => ({
+        ...record,
+        timestamp: new Date(record.timestamp)
+      }))
+    }));
+  } else {
+    classes = defaultClasses;
+  }
+  
+  return { users, classes };
+};
+
+// Get initial data
+let { users, classes } = initializeData();
+
+// Helper function to save users to localStorage
+const saveUsers = () => {
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+};
+
+// Helper function to save classes to localStorage
+const saveClasses = () => {
+  localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+};
 
 // Get all users
 export const getAllUsers = () => {
@@ -91,6 +135,9 @@ export const addUser = (newUser: Omit<User, "password"> & { password: string }) 
     role: newUser.role,
   });
   
+  // Save to localStorage
+  saveUsers();
+  
   return true;
 };
 
@@ -123,10 +170,15 @@ export const deleteUser = (userId: string) => {
       ...c,
       studentIds: c.studentIds.filter((id) => id !== userId),
     }));
+    // Save updated classes
+    saveClasses();
   }
   
   // Remove the user
   users = users.filter((user) => user.userId !== userId);
+  
+  // Save to localStorage
+  saveUsers();
   
   return true;
 };
@@ -153,6 +205,9 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
     isActive: false,
     attendanceRecords: [],
   });
+  
+  // Save to localStorage
+  saveClasses();
   
   return classId;
 };
@@ -194,6 +249,9 @@ export const deleteClass = (classId: string, teacherId: string) => {
   // Remove the class
   classes = classes.filter((c) => c.id !== classId);
   
+  // Save to localStorage
+  saveClasses();
+  
   toast({
     title: "Success",
     description: "Class has been deleted successfully.",
@@ -222,6 +280,9 @@ export const toggleClassStatus = (classId: string, teacherId: string) => {
     c.id === classId ? { ...c, isActive: !c.isActive } : c
   );
   
+  // Save to localStorage
+  saveClasses();
+  
   return true;
 };
 
@@ -237,6 +298,9 @@ export const markAttendance = (classId: string, studentId: string) => {
     studentId,
     timestamp: new Date(),
   });
+  
+  // Save to localStorage
+  saveClasses();
   
   return true;
 };
