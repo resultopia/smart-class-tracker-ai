@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { authenticateUser } from "@/lib/data";
 import { useAuth } from "@/lib/auth-context";
+import UserInfo from "@/components/UserInfo";
 
 const AdminLogin = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, currentUser } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +49,11 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      {currentUser && (
+        <div className="absolute top-4 right-4">
+          <UserInfo />
+        </div>
+      )}
       <Card className="w-[350px] shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Admin Access Required</CardTitle>

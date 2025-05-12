@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,10 +22,11 @@ import { getUsersByRole, createClass, getTeacherClasses, Class } from "@/lib/dat
 import { useAuth } from "@/lib/auth-context";
 import ClassCard from "@/components/ClassCard";
 import { useToast } from "@/components/ui/use-toast";
-import { CheckIcon, PlusIcon, LogOutIcon } from "lucide-react";
+import { CheckIcon, PlusIcon } from "lucide-react";
+import UserInfo from "@/components/UserInfo";
 
 const TeacherDashboard = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [className, setClassName] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -98,11 +98,6 @@ const TeacherDashboard = () => {
     loadClasses();
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
   const students = getUsersByRole("student");
 
   return (
@@ -110,10 +105,7 @@ const TeacherDashboard = () => {
       <div className="container max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">Teacher Dashboard</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOutIcon className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <UserInfo />
         </div>
 
         <div className="bg-white rounded-lg p-6 mb-8 shadow">
