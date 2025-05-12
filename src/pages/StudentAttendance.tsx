@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,8 @@ import { getStudentActiveClass, markAttendance, verifyFaceIdentity } from "@/lib
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/use-toast";
 import ImageUpload from "@/components/ImageUpload";
-import { LogOutIcon, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import UserInfo from "@/components/UserInfo";
 
 const StudentAttendance = () => {
   const { currentUser, logout } = useAuth();
@@ -110,10 +110,7 @@ const StudentAttendance = () => {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Student Attendance</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOutIcon className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <UserInfo />
         </div>
 
         <Card className="shadow-lg">
