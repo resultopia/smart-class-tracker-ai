@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { authenticateUser } from "@/lib/data";
+import { useAuth } from "@/lib/auth-context";
 
 const AdminLogin = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +38,9 @@ const AdminLogin = () => {
       });
       return;
     }
+    
+    // Login the user using auth context
+    login(user);
     
     // If authenticated as admin, proceed to register page
     navigate("/register");
