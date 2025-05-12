@@ -11,6 +11,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Trash2, Plus } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import UserInfo from "@/components/UserInfo";
 
 const Register = () => {
   const [role, setRole] = useState<UserRole>("student");
@@ -20,11 +22,28 @@ const Register = () => {
   const [newName, setNewName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
 
-  // Load users when component mounts
   useEffect(() => {
+    // Check if user is logged in and is an admin
+    if (!currentUser) {
+      navigate("/admin-login");
+      return;
+    }
+    
+    if (currentUser.role !== "admin") {
+      toast({
+        title: "Access Denied",
+        description: "Only administrators can access this page.",
+        variant: "destructive",
+      });
+      navigate("/admin-login");
+      return;
+    }
+    
+    // Load users when component mounts and admin is verified
     setUsers(getAllUsers());
-  }, []);
+  }, [currentUser, navigate, toast]);
 
   // Filter users by selected role
   const filteredUsers = users.filter(user => user.role === role);
@@ -78,6 +97,9 @@ const Register = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-slate-50 p-4">
+      <div className="absolute top-4 right-4">
+        <UserInfo />
+      </div>
       <Card className="w-full max-w-4xl shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">User Management</CardTitle>

@@ -84,7 +84,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             variant={classData.isActive ? "outline" : "default"}
             size="sm"
             onClick={handleToggleStatus}
-            className="flex-1 min-w-[100px]"
+            className="flex-1 min-w-[100px] justify-start px-3"
           >
             {classData.isActive ? (
               <>
