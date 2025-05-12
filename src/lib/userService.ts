@@ -1,7 +1,7 @@
 
 import { toast } from "@/components/ui/use-toast";
 import { User, UserRole } from './types';
-import { initializeData, saveUsers } from './storage';
+import { initializeData, saveUsers, saveClasses } from './storage';
 
 // Initialize state
 let { users, classes } = initializeData();
