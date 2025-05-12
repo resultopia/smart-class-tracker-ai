@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Class, toggleClassStatus, deleteClass } from "@/lib/data";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { deleteClass, toggleClassStatus, getUserById } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Trash2 } from "lucide-react";
+import { Play, Pause, Trash2, Users, ClipboardList } from "lucide-react";
 import AttendanceList from "./AttendanceList";
+import AttendanceDashboard from "./AttendanceDashboard";
+import { Class } from "@/lib/types";
 
 interface ClassCardProps {
   classData: Class;
@@ -16,110 +17,136 @@ interface ClassCardProps {
 }
 
 const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => {
+  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
+  const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
   const { toast } = useToast();
-  const [showAttendance, setShowAttendance] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleToggleStatus = () => {
     const success = toggleClassStatus(classData.id, teacherId);
     
     if (success) {
+      onStatusChange();
       toast({
         title: classData.isActive ? "Class Stopped" : "Class Started",
-        description: classData.isActive 
-          ? "The class has been marked as inactive." 
-          : "The class is now active and accepting attendance.",
+        description: classData.isActive ? "Students can no longer mark attendance." : "Students can now mark attendance.",
       });
-      onStatusChange();
     } else {
       toast({
-        title: "Action Failed",
-        description: "Could not change the class status.",
+        title: "Error",
+        description: "Failed to change class status.",
         variant: "destructive",
       });
     }
   };
 
-  const handleDeleteClass = () => {
+  const handleDelete = () => {
     const success = deleteClass(classData.id, teacherId);
     
     if (success) {
-      setShowDeleteConfirm(false);
       onStatusChange();
     }
   };
 
+  // Get student count
+  const studentCount = classData.studentIds.length;
+
+  // Get attendance count for today
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayAttendanceCount = classData.attendanceRecords.filter(
+    (record) => new Date(record.timestamp) >= todayStart && record.status === "present"
+  ).length;
+
   return (
     <>
-      <Card>
+      <Card className={classData.isActive ? "border-primary" : ""}>
         <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg">{classData.name}</CardTitle>
-            <Badge variant={classData.isActive ? "default" : "secondary"}>
-              {classData.isActive ? "Active" : "Inactive"}
-            </Badge>
+          <CardTitle className="text-lg font-medium">{classData.name}</CardTitle>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Users className="h-4 w-4 mr-1" />
+            <span>{studentCount} student{studentCount !== 1 && "s"}</span>
           </div>
         </CardHeader>
         <CardContent className="pb-2">
-          <p className="text-sm text-muted-foreground mb-2">
-            {classData.studentIds.length} students enrolled
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {classData.attendanceRecords.length} attendance records
-          </p>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowAttendance(true)}
-              disabled={classData.attendanceRecords.length === 0}
-            >
-              View Attendance
-            </Button>
-            
-            {!classData.isActive && (
-              <Button 
-                variant="destructive" 
-                size="icon"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 size={16} />
-              </Button>
+          <div className="flex items-center justify-between">
+            <div className={`text-sm ${classData.isActive ? "text-primary" : "text-muted-foreground"}`}>
+              Status: <span className="font-medium">{classData.isActive ? "Active" : "Inactive"}</span>
+            </div>
+            {classData.isActive && (
+              <div className="text-sm">
+                <span className="font-medium text-green-600">{todayAttendanceCount}</span> present today
+              </div>
             )}
           </div>
+        </CardContent>
+        <CardFooter className="pt-2 flex flex-wrap gap-2">
           <Button 
-            variant={classData.isActive ? "destructive" : "default"} 
+            variant={classData.isActive ? "outline" : "default"}
+            size="sm"
             onClick={handleToggleStatus}
+            className="flex-1 min-w-[100px]"
           >
-            {classData.isActive ? "Stop Class" : "Start Class"}
+            {classData.isActive ? (
+              <>
+                <Pause className="h-4 w-4 mr-2" />
+                Stop Class
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Start Class
+              </>
+            )}
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAttendanceDialog(true)}
+            className="flex-1 min-w-[100px]"
+          >
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Records
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAttendanceDashboard(true)}
+            className="flex-1 min-w-[100px]"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Dashboard
+          </Button>
+
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDelete}
+            disabled={classData.isActive}
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
         </CardFooter>
       </Card>
 
-      {/* Attendance Dialog */}
-      <Dialog open={showAttendance} onOpenChange={setShowAttendance}>
-        <DialogContent>
+      {/* Attendance Records Dialog */}
+      <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Attendance for {classData.name}</DialogTitle>
+            <DialogTitle>Attendance Records - {classData.name}</DialogTitle>
           </DialogHeader>
           <AttendanceList attendanceRecords={classData.attendanceRecords} />
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
+      {/* Attendance Dashboard Dialog */}
+      <Dialog open={showAttendanceDashboard} onOpenChange={setShowAttendanceDashboard}>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Delete Class</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{classData.name}"? This action cannot be undone.
-            </DialogDescription>
+            <DialogTitle>Attendance Dashboard - {classData.name}</DialogTitle>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteClass}>Delete</Button>
-          </DialogFooter>
+          <AttendanceDashboard classData={classData} />
         </DialogContent>
       </Dialog>
     </>

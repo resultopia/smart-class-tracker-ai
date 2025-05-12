@@ -8,12 +8,19 @@ import Login from "./pages/Login";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentAttendance from "./pages/StudentAttendance";
 import Register from "./pages/Register";
+import AdminLogin from "./pages/AdminLogin";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 
 const queryClient = new QueryClient();
 
 // Protected route component
-const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "student" | "teacher" }) => {
+const ProtectedRoute = ({ 
+  children, 
+  requiredRole 
+}: { 
+  children: React.ReactNode;
+  requiredRole?: "student" | "teacher" | "admin";
+}) => {
   const { currentUser, isLoading } = useAuth();
   
   if (isLoading) {
@@ -36,7 +43,15 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
+      <Route 
+        path="/register" 
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <Register />
+          </ProtectedRoute>
+        } 
+      />
       <Route 
         path="/teacher-dashboard" 
         element={

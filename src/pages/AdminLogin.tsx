@@ -1,23 +1,18 @@
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
-import { authenticateUser, UserRole } from "@/lib/data";
-import { useAuth } from "@/lib/auth-context";
-import { Shield } from "lucide-react";
+import { authenticateUser } from "@/lib/data";
 
-const Login = () => {
+const AdminLogin = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("student");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,58 +28,34 @@ const Login = () => {
       return;
     }
     
-    if (user.role !== role) {
+    if (user.role !== "admin") {
       toast({
-        title: "Role Mismatch",
-        description: `You are not registered as a ${role}.`,
+        title: "Access Denied",
+        description: "Only administrators can access user registration.",
         variant: "destructive",
       });
       return;
     }
     
-    login(user);
-    
-    if (role === "teacher") {
-      navigate("/teacher-dashboard");
-    } else {
-      navigate("/student-attendance");
-    }
+    // If authenticated as admin, proceed to register page
+    navigate("/register");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <Card className="w-[350px] shadow-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Attendance System</CardTitle>
+          <CardTitle className="text-2xl">Admin Access Required</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="role">Login As</Label>
-              <RadioGroup 
-                defaultValue="student" 
-                value={role} 
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="student" id="student" />
-                  <Label htmlFor="student">Student</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="teacher" id="teacher" />
-                  <Label htmlFor="teacher">Teacher</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="userId">User ID</Label>
+              <Label htmlFor="userId">Admin ID</Label>
               <Input 
                 id="userId" 
                 value={userId} 
                 onChange={(e) => setUserId(e.target.value)} 
-                placeholder="Enter your user ID" 
+                placeholder="Enter admin ID" 
                 required 
               />
             </div>
@@ -96,7 +67,7 @@ const Login = () => {
                 type="password" 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
-                placeholder="Enter your password" 
+                placeholder="Enter password" 
                 required 
               />
             </div>
@@ -104,10 +75,9 @@ const Login = () => {
             <Button type="submit" className="w-full">Login</Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/admin-login")} className="flex items-center">
-            <Shield className="h-4 w-4 mr-2" />
-            Admin Access
+        <CardFooter className="flex justify-center">
+          <Button variant="link" onClick={() => navigate("/")}>
+            Back to Login
           </Button>
         </CardFooter>
       </Card>
@@ -115,4 +85,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default AdminLogin;

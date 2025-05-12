@@ -15,6 +15,7 @@ const StudentAttendance = () => {
   const { toast } = useToast();
   const [activeClass, setActiveClass] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   
   useEffect(() => {
@@ -43,6 +44,7 @@ const StudentAttendance = () => {
     setActiveClass(studentClass);
     setProcessingStatus('idle');
     setSelectedImage(null);
+    setImageBase64(null);
   };
 
   const handleLogout = () => {
@@ -50,26 +52,26 @@ const StudentAttendance = () => {
     navigate("/");
   };
 
-  const handleImageSelected = (file: File) => {
+  const handleImageSelected = (base64: string, file: File) => {
     setSelectedImage(file);
+    setImageBase64(base64);
     setProcessingStatus('idle');
   };
 
   const submitAttendance = async () => {
-    if (!currentUser || !activeClass || !selectedImage) return;
+    if (!currentUser || !activeClass || !imageBase64) return;
     
     setProcessingStatus('processing');
     
     try {
-      // In a real application, we would upload the image and get a URL
-      // For demo purposes, we'll create a fake URL
-      const fakeImageUrl = URL.createObjectURL(selectedImage);
+      // Extract the base64 data (remove the "data:image/jpeg;base64," prefix)
+      const base64Data = imageBase64.split(',')[1];
       
-      // Call the "face recognition API"
-      const verified = await verifyFaceIdentity(fakeImageUrl, currentUser.userId);
+      // Call the facial verification API
+      const verified = await verifyFaceIdentity(base64Data, currentUser.userId);
       
       if (verified) {
-        const attendanceMarked = markAttendance(activeClass.id, currentUser.userId);
+        const attendanceMarked = markAttendance(activeClass.id, currentUser.userId, "present");
         
         if (attendanceMarked) {
           setProcessingStatus('success');
@@ -148,7 +150,7 @@ const StudentAttendance = () => {
                     <ImageUpload onImageSelected={handleImageSelected} />
                     <Button 
                       className="w-full mt-4" 
-                      disabled={!selectedImage || processingStatus === 'processing'}
+                      disabled={!imageBase64 || processingStatus === 'processing'}
                       onClick={submitAttendance}
                     >
                       {processingStatus === 'processing' ? (

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Camera, Upload } from "lucide-react";
 
 interface ImageUploadProps {
-  onImageSelected: (file: File) => void;
+  onImageSelected: (base64: string, file: File) => void;
 }
 
 const ImageUpload = ({ onImageSelected }: ImageUploadProps) => {
@@ -29,7 +29,38 @@ const ImageUpload = ({ onImageSelected }: ImageUploadProps) => {
     // Create preview URL
     const fileUrl = URL.createObjectURL(file);
     setPreviewUrl(fileUrl);
-    onImageSelected(file);
+    
+    // Resize image and convert to base64
+    resizeImage(file, 160, 160).then(base64 => {
+      onImageSelected(base64, file);
+    });
+  };
+
+  const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = maxWidth;
+          canvas.height = maxHeight;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          
+          // Draw image with proper scaling to fit within dimensions
+          ctx.drawImage(img, 0, 0, maxWidth, maxHeight);
+          
+          // Convert to base64
+          const base64 = canvas.toDataURL('image/jpeg', 0.9);
+          resolve(base64);
+        };
+      };
+    });
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
