@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Camera, RotateCcw } from "lucide-react";
 
@@ -14,6 +14,15 @@ const ImageUpload = ({ onImageSelected }: ImageUploadProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Effect to handle video stream assignment
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      // Ensure video plays
+      videoRef.current.play().catch(console.error);
+    }
+  }, [stream]);
+
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -26,10 +35,6 @@ const ImageUpload = ({ onImageSelected }: ImageUploadProps) => {
       
       setStream(mediaStream);
       setIsCapturing(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
     } catch (error) {
       console.error('Error accessing camera:', error);
       alert('Unable to access camera. Please ensure camera permissions are granted.');
@@ -118,7 +123,8 @@ const ImageUpload = ({ onImageSelected }: ImageUploadProps) => {
               autoPlay
               playsInline
               muted
-              className="max-h-[250px] max-w-full mb-4 rounded-lg border"
+              className="max-h-[250px] max-w-full mb-4 rounded-lg border bg-black"
+              style={{ transform: 'scaleX(-1)' }} // Mirror the video for better user experience
             />
             <div className="flex gap-2">
               <Button onClick={capturePhoto} size="sm">
