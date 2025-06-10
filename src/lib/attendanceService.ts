@@ -101,8 +101,11 @@ export const getStudentsAttendanceStatus = (classId: string) => {
 // Mock face recognition API call
 export const verifyFaceIdentity = async (imageBase64: string, userId: string): Promise<boolean> => {
   try {
-    // Make API call to the facial verification service
-    const response = await fetch('http://127.0.0.1:8000/predict', {
+    const backendPort = '8000';  // <— your custom backend port
+    const protocol    = window.location.protocol;  // e.g. "http:"
+    const hostname    = window.location.hostname;  // e.g. "127.0.0.1"
+    const backendUrl  = `${protocol}//${hostname}:${backendPort}`;
+    const response = await fetch(`${backendUrl}/predict`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
