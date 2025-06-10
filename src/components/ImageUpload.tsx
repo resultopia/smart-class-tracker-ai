@@ -1,7 +1,7 @@
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload } from "lucide-react";
+import { Camera, RotateCcw } from "lucide-react";
 
 interface ImageUploadProps {
   onImageSelected: (base64: string, file: File) => void;
@@ -9,132 +9,137 @@ interface ImageUploadProps {
 
 const ImageUpload = ({ onImageSelected }: ImageUploadProps) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      processFile(file);
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user" // Front-facing camera
+        }
+      });
+      
+      setStream(mediaStream);
+      setIsCapturing(true);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please ensure camera permissions are granted.');
     }
   };
 
-  const processFile = (file: File) => {
-    // Check if file is an image
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file");
-      return;
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
     }
+    setIsCapturing(false);
+  };
 
-    // Create preview URL
-    const fileUrl = URL.createObjectURL(file);
-    setPreviewUrl(fileUrl);
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0);
+
+    // Convert to base64
+    const base64 = canvas.toDataURL('image/jpeg', 0.9);
     
-    // Resize image and convert to base64
-    resizeImage(file, 160, 160).then(base64 => {
-      onImageSelected(base64, file);
-    });
-  };
+    // Create preview URL
+    setPreviewUrl(base64);
+    
+    // Stop camera
+    stopCamera();
 
-  const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = maxWidth;
-          canvas.height = maxHeight;
-          
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          
-          // Draw image with proper scaling to fit within dimensions
-          ctx.drawImage(img, 0, 0, maxWidth, maxHeight);
-          
-          // Convert to base64
-          const base64 = canvas.toDataURL('image/jpeg', 0.9);
-          resolve(base64);
-        };
-      };
-    });
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      processFile(file);
+    // Create a File object from the base64 data
+    const byteString = atob(base64.split(',')[1]);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i);
     }
+    
+    const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+    const file = new File([blob], 'captured-photo.jpg', { type: 'image/jpeg' });
+    
+    // Call the callback with base64 and file
+    onImageSelected(base64, file);
   };
 
-  const triggerFileInput = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+  const retakePhoto = () => {
+    setPreviewUrl(null);
+    startCamera();
   };
 
   return (
     <div className="w-full">
-      <div
-        className={`
-          border-2 border-dashed rounded-lg p-4 text-center
-          transition-all duration-200 cursor-pointer
-          ${isDragOver ? "border-primary bg-primary/5" : "border-border"}
-          ${previewUrl ? "bg-muted/30" : "hover:bg-muted/30"}
-        `}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={triggerFileInput}
-        style={{ minHeight: "200px" }}
-      >
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*"
-          className="hidden"
-        />
+      <div className="border-2 border-dashed rounded-lg p-4 text-center transition-all duration-200 border-border bg-muted/30 min-h-[300px] flex flex-col items-center justify-center">
+        
+        {/* Hidden canvas for photo capture */}
+        <canvas ref={canvasRef} className="hidden" />
 
         {previewUrl ? (
-          <div className="flex flex-col items-center">
+          // Show captured photo
+          <div className="flex flex-col items-center w-full">
             <img
               src={previewUrl}
-              alt="Preview"
-              className="max-h-[200px] max-w-full my-2 rounded-lg"
+              alt="Captured photo"
+              className="max-h-[250px] max-w-full mb-4 rounded-lg border"
             />
-            <p className="text-sm text-muted-foreground mt-2">
-              Click to change image
-            </p>
+            <Button onClick={retakePhoto} variant="outline" size="sm">
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Retake Photo
+            </Button>
+          </div>
+        ) : isCapturing ? (
+          // Show live camera feed
+          <div className="flex flex-col items-center w-full">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="max-h-[250px] max-w-full mb-4 rounded-lg border"
+            />
+            <div className="flex gap-2">
+              <Button onClick={capturePhoto} size="sm">
+                <Camera className="h-4 w-4 mr-2" />
+                Capture Photo
+              </Button>
+              <Button onClick={stopCamera} variant="outline" size="sm">
+                Cancel
+              </Button>
+            </div>
           </div>
         ) : (
+          // Show start camera button
           <div className="flex flex-col items-center justify-center h-full py-4">
             <Camera className="h-10 w-10 text-muted-foreground mb-2" />
-            <p className="text-muted-foreground mb-2">
-              Drag and drop your photo or click to select
+            <p className="text-muted-foreground mb-4">
+              Take a live photo for attendance verification
             </p>
-            <Button variant="secondary" size="sm" onClick={(e) => {
-              e.stopPropagation();
-              triggerFileInput();
-            }}>
-              <Upload className="h-4 w-4 mr-2" />
-              Select Image
+            <Button onClick={startCamera} size="sm">
+              <Camera className="h-4 w-4 mr-2" />
+              Start Camera
             </Button>
           </div>
         )}
