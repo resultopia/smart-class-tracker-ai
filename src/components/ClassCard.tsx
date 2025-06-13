@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { deleteClass, toggleClassStatus, toggleOnlineMode, getUserById } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Play, Pause, Trash2, Users, ClipboardList, History, Wifi, WifiOff } from "lucide-react";
+import { Play, Pause, Trash2, Users, ClipboardList, History, Wifi, WifiOff, Upload } from "lucide-react";
 import AttendanceList from "./AttendanceList";
 import AttendanceDashboard from "./AttendanceDashboard";
 import AttendanceHistory from "./AttendanceHistory";
+import CSVAttendanceUpload from "./CSVAttendanceUpload";
 import { Class } from "@/lib/types";
 
 interface ClassCardProps {
@@ -23,6 +24,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
   const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
+  const [showCSVUploadDialog, setShowCSVUploadDialog] = useState(false);
   const { toast } = useToast();
 
   const handleToggleStatus = () => {
@@ -69,6 +71,11 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
     if (success) {
       onStatusChange();
     }
+  };
+
+  const handleCSVUploadComplete = () => {
+    onStatusChange(); // Refresh the data
+    setShowCSVUploadDialog(false);
   };
 
   // Get student count
@@ -146,6 +153,19 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             )}
           </Button>
           
+          {/* CSV Upload button - only show for online mode */}
+          {classData.isOnlineMode && classData.isActive && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCSVUploadDialog(true)}
+              className="flex-1 min-w-[100px]"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload CSV
+            </Button>
+          )}
+          
           <Button
             variant="outline"
             size="sm"
@@ -186,6 +206,19 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           </Button>
         </CardFooter>
       </Card>
+
+      {/* CSV Attendance Upload Dialog */}
+      <Dialog open={showCSVUploadDialog} onOpenChange={setShowCSVUploadDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Upload Attendance CSV - {classData.name}</DialogTitle>
+          </DialogHeader>
+          <CSVAttendanceUpload 
+            classId={classData.id} 
+            onAttendanceMarked={handleCSVUploadComplete}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Attendance Records Dialog */}
       <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
