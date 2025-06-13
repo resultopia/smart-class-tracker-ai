@@ -16,6 +16,7 @@ const defaultClasses: Class[] = [
     teacherId: "teacher1",
     studentIds: ["student1", "student2"],
     isActive: false,
+    isOnlineMode: false,
     attendanceRecords: [],
   },
 ];
