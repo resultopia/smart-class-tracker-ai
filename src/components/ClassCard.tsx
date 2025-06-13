@@ -2,12 +2,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { deleteClass, toggleClassStatus, getUserById } from "@/lib/data";
+import { deleteClass, toggleClassStatus, toggleOnlineMode, getUserById } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Play, Pause, Trash2, Users, ClipboardList } from "lucide-react";
+import { Play, Pause, Trash2, Users, ClipboardList, History, Wifi, WifiOff } from "lucide-react";
 import AttendanceList from "./AttendanceList";
 import AttendanceDashboard from "./AttendanceDashboard";
+import AttendanceHistory from "./AttendanceHistory";
 import { Class } from "@/lib/types";
 
 interface ClassCardProps {
@@ -19,6 +22,7 @@ interface ClassCardProps {
 const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => {
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
+  const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
   const { toast } = useToast();
 
   const handleToggleStatus = () => {
@@ -34,6 +38,26 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
       toast({
         title: "Error",
         description: "Failed to change class status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleOnlineMode = () => {
+    const success = toggleOnlineMode(classData.id, teacherId);
+    
+    if (success) {
+      onStatusChange();
+      toast({
+        title: `Online Mode ${classData.isOnlineMode ? "Disabled" : "Enabled"}`,
+        description: classData.isOnlineMode 
+          ? "Students can now mark their own attendance." 
+          : "Only teachers can mark attendance in online mode.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to change online mode.",
         variant: "destructive",
       });
     }
@@ -61,13 +85,21 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
     <>
       <Card className={classData.isActive ? "border-primary" : ""}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-medium">{classData.name}</CardTitle>
+          <CardTitle className="text-lg font-medium flex items-center justify-between">
+            <span>{classData.name}</span>
+            {classData.isOnlineMode && (
+              <div className="flex items-center text-blue-600">
+                <Wifi className="h-4 w-4 mr-1" />
+                <span className="text-xs">Online</span>
+              </div>
+            )}
+          </CardTitle>
           <div className="flex items-center text-sm text-muted-foreground">
             <Users className="h-4 w-4 mr-1" />
             <span>{studentCount} student{studentCount !== 1 && "s"}</span>
           </div>
         </CardHeader>
-        <CardContent className="pb-2">
+        <CardContent className="pb-2 space-y-3">
           <div className="flex items-center justify-between">
             <div className={`text-sm ${classData.isActive ? "text-primary" : "text-muted-foreground"}`}>
               Status: <span className="font-medium">{classData.isActive ? "Active" : "Inactive"}</span>
@@ -77,6 +109,21 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
                 <span className="font-medium text-green-600">{todayAttendanceCount}</span> present today
               </div>
             )}
+          </div>
+          
+          {/* Online Mode Toggle */}
+          <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-2">
+              {classData.isOnlineMode ? <Wifi className="h-4 w-4 text-blue-600" /> : <WifiOff className="h-4 w-4 text-gray-500" />}
+              <Label htmlFor={`online-mode-${classData.id}`} className="text-sm font-medium">
+                Online Mode
+              </Label>
+            </div>
+            <Switch
+              id={`online-mode-${classData.id}`}
+              checked={classData.isOnlineMode}
+              onCheckedChange={handleToggleOnlineMode}
+            />
           </div>
         </CardContent>
         <CardFooter className="pt-2 flex flex-wrap gap-2">
@@ -120,6 +167,16 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           </Button>
 
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAttendanceHistory(true)}
+            className="flex-1 min-w-[100px]"
+          >
+            <History className="h-4 w-4 mr-2" />
+            History
+          </Button>
+
+          <Button
             variant="destructive"
             size="sm"
             onClick={handleDelete}
@@ -147,6 +204,16 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             <DialogTitle>Attendance Dashboard - {classData.name}</DialogTitle>
           </DialogHeader>
           <AttendanceDashboard classData={classData} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Attendance History Dialog */}
+      <Dialog open={showAttendanceHistory} onOpenChange={setShowAttendanceHistory}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Attendance History - {classData.name}</DialogTitle>
+          </DialogHeader>
+          <AttendanceHistory classData={classData} />
         </DialogContent>
       </Dialog>
     </>

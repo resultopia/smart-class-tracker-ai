@@ -7,6 +7,7 @@ export interface User {
   name: string;
   password: string;
   role: UserRole;
+  photos?: string[]; // Base64 encoded photos for students
 }
 
 export interface Class {
@@ -15,6 +16,7 @@ export interface Class {
   teacherId: string;
   studentIds: string[];
   isActive: boolean;
+  isOnlineMode: boolean; // New field for online mode
   attendanceRecords: AttendanceRecord[];
 }
 

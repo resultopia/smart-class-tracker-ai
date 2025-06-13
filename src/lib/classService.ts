@@ -1,4 +1,3 @@
-
 import { toast } from "@/components/ui/use-toast";
 import { Class } from './types';
 import { initializeData, saveClasses } from './storage';
@@ -25,7 +24,7 @@ export const getStudentActiveClass = (studentId: string) => {
 };
 
 // Create new class
-export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanceRecords">) => {
+export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanceRecords" | "isOnlineMode">) => {
   // Refresh data from localStorage before modification
   const refreshedData = initializeData();
   classes = refreshedData.classes;
@@ -38,6 +37,7 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
     teacherId: newClass.teacherId,
     studentIds: newClass.studentIds,
     isActive: false,
+    isOnlineMode: false, // Default to offline mode
     attendanceRecords: [],
   });
   
@@ -45,6 +45,55 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
   saveClasses(classes);
   
   return classId;
+};
+
+// Toggle online mode for a class
+export const toggleOnlineMode = (classId: string, teacherId: string) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
+  const classToToggle = classes.find((c) => c.id === classId);
+  if (!classToToggle || classToToggle.teacherId !== teacherId) {
+    return false;
+  }
+  
+  // Toggle the online mode
+  classes = classes.map((c) => 
+    c.id === classId ? { ...c, isOnlineMode: !c.isOnlineMode } : c
+  );
+  
+  // Save to localStorage
+  saveClasses(classes);
+  
+  return true;
+};
+
+// Bulk add students from CSV
+export const bulkAddStudentsToClass = (classId: string, teacherId: string, studentIds: string[]) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
+  const classToUpdate = classes.find((c) => c.id === classId);
+  if (!classToUpdate || classToUpdate.teacherId !== teacherId) {
+    return false;
+  }
+  
+  // Add new student IDs, avoiding duplicates
+  const existingIds = new Set(classToUpdate.studentIds);
+  const newIds = studentIds.filter(id => !existingIds.has(id));
+  
+  classes = classes.map((c) => 
+    c.id === classId 
+      ? { ...c, studentIds: [...c.studentIds, ...newIds] }
+      : c
+  );
+  
+  // Save to localStorage
+  saveClasses(classes);
+  
+  return newIds.length;
 };
 
 // Delete a class
