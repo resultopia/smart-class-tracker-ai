@@ -18,6 +18,7 @@ const defaultClasses: Class[] = [
     isActive: false,
     isOnlineMode: false,
     attendanceRecords: [],
+    sessions: [],
   },
 ];
 
@@ -36,10 +37,19 @@ export const initializeData = () => {
     const parsedClasses = JSON.parse(storedClassesJSON);
     classes = parsedClasses.map((cls: any) => ({
       ...cls,
-      attendanceRecords: cls.attendanceRecords.map((record: any) => ({
+      attendanceRecords: cls.attendanceRecords?.map((record: any) => ({
         ...record,
         timestamp: new Date(record.timestamp)
-      }))
+      })) || [],
+      sessions: cls.sessions?.map((session: any) => ({
+        ...session,
+        startTime: new Date(session.startTime),
+        endTime: session.endTime ? new Date(session.endTime) : undefined,
+        attendanceRecords: session.attendanceRecords?.map((record: any) => ({
+          ...record,
+          timestamp: new Date(record.timestamp)
+        })) || []
+      })) || []
     }));
   } else {
     classes = defaultClasses;
@@ -73,10 +83,19 @@ export const setupStorageListeners = (
       const parsedClasses = JSON.parse(event.newValue || '[]');
       const updatedClasses = parsedClasses.map((cls: any) => ({
         ...cls,
-        attendanceRecords: cls.attendanceRecords.map((record: any) => ({
+        attendanceRecords: cls.attendanceRecords?.map((record: any) => ({
           ...record,
           timestamp: new Date(record.timestamp)
-        }))
+        })) || [],
+        sessions: cls.sessions?.map((session: any) => ({
+          ...session,
+          startTime: new Date(session.startTime),
+          endTime: session.endTime ? new Date(session.endTime) : undefined,
+          attendanceRecords: session.attendanceRecords?.map((record: any) => ({
+            ...record,
+            timestamp: new Date(record.timestamp)
+          })) || []
+        })) || []
       }));
       setClasses(updatedClasses);
     }

@@ -35,7 +35,9 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
       onStatusChange();
       toast({
         title: classData.isActive ? "Class Stopped" : "Class Started",
-        description: classData.isActive ? "Students can no longer mark attendance." : "Students can now mark attendance.",
+        description: classData.isActive 
+          ? "Current session ended and saved to history. Attendance dashboard reset." 
+          : "New session started. Students can now mark attendance.",
       });
     } else {
       toast({
@@ -77,6 +79,10 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const handleCSVUploadComplete = () => {
     onStatusChange(); // Refresh the data
     setShowCSVUploadDialog(false);
+  };
+
+  const handleExtensionClick = () => {
+    window.open("https://google.co.in", "_blank");
   };
 
   // Get student count
@@ -144,14 +150,13 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
                   <p className="text-blue-600">
                     Online attendance can be fetched from Google Meet through our extension.
                   </p>
-                  <a 
-                    href="#" 
-                    className="inline-flex items-center text-blue-700 hover:text-blue-800 underline text-sm font-medium"
-                    onClick={(e) => e.preventDefault()}
+                  <button 
+                    onClick={handleExtensionClick}
+                    className="inline-flex items-center text-blue-700 hover:text-blue-800 underline text-sm font-medium transition-colors"
                   >
                     Get Extension
                     <ExternalLink className="h-3 w-3 ml-1" />
-                  </a>
+                  </button>
                 </div>
               </AlertDescription>
             </Alert>

@@ -1,5 +1,6 @@
+
 import { toast } from "@/components/ui/use-toast";
-import { Class } from './types';
+import { Class, ClassSession } from './types';
 import { initializeData, saveClasses } from './storage';
 
 // Initialize state
@@ -24,7 +25,7 @@ export const getStudentActiveClass = (studentId: string) => {
 };
 
 // Create new class
-export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanceRecords" | "isOnlineMode">) => {
+export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanceRecords" | "isOnlineMode" | "sessions">) => {
   // Refresh data from localStorage before modification
   const refreshedData = initializeData();
   classes = refreshedData.classes;
@@ -37,8 +38,9 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
     teacherId: newClass.teacherId,
     studentIds: newClass.studentIds,
     isActive: false,
-    isOnlineMode: false, // Default to offline mode
+    isOnlineMode: false,
     attendanceRecords: [],
+    sessions: [],
   });
   
   // Save to localStorage
@@ -148,34 +150,75 @@ export const deleteClass = (classId: string, teacherId: string) => {
   return true;
 };
 
-// Toggle class active status
+// Toggle class active status with session management
 export const toggleClassStatus = (classId: string, teacherId: string) => {
   // Refresh data from localStorage before modification
   const refreshedData = initializeData();
   classes = refreshedData.classes;
   
-  // If we're trying to activate a class, first deactivate any active classes from this teacher
   const classToToggle = classes.find((c) => c.id === classId);
   if (!classToToggle || classToToggle.teacherId !== teacherId) {
     return false;
   }
   
-  if (!classToToggle.isActive) {
-    // Deactivate any other active classes from this teacher
+  if (classToToggle.isActive) {
+    // Stopping the class - save current session
+    const currentSession: ClassSession = {
+      sessionId: `session_${Date.now()}`,
+      startTime: new Date(Date.now() - 3600000), // Assume session started 1 hour ago for demo
+      endTime: new Date(),
+      attendanceRecords: [...classToToggle.attendanceRecords]
+    };
+    
+    classes = classes.map((c) => 
+      c.id === classId 
+        ? { 
+            ...c, 
+            isActive: false, 
+            attendanceRecords: [], // Reset current attendance
+            sessions: [...c.sessions, currentSession] // Add to sessions history
+          } 
+        : c
+    );
+  } else {
+    // Starting the class - deactivate other classes and reset attendance
     classes = classes.map((c) => 
       c.teacherId === teacherId ? { ...c, isActive: false } : c
     );
+    
+    classes = classes.map((c) => 
+      c.id === classId 
+        ? { 
+            ...c, 
+            isActive: true, 
+            attendanceRecords: [] // Start with fresh attendance
+          } 
+        : c
+    );
   }
-  
-  // Toggle the requested class
-  classes = classes.map((c) => 
-    c.id === classId ? { ...c, isActive: !c.isActive } : c
-  );
   
   // Save to localStorage
   saveClasses(classes);
   
   return true;
+};
+
+// Get sessions for a specific date
+export const getClassSessionsForDate = (classId: string, date: Date) => {
+  const refreshedData = initializeData();
+  classes = refreshedData.classes;
+  
+  const classObj = classes.find((c) => c.id === classId);
+  if (!classObj) return [];
+  
+  const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const nextDate = new Date(targetDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+  
+  return classObj.sessions.filter(session => {
+    const sessionDate = new Date(session.startTime);
+    return sessionDate >= targetDate && sessionDate < nextDate;
+  });
 };
 
 // Update classes reference for storage event listener

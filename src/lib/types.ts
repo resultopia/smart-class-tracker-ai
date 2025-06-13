@@ -7,7 +7,15 @@ export interface User {
   name: string;
   password: string;
   role: UserRole;
+  phoneNumber?: string; // Optional phone number field
   photos?: string[]; // Base64 encoded photos for students
+}
+
+export interface ClassSession {
+  sessionId: string;
+  startTime: Date;
+  endTime?: Date;
+  attendanceRecords: AttendanceRecord[];
 }
 
 export interface Class {
@@ -16,8 +24,9 @@ export interface Class {
   teacherId: string;
   studentIds: string[];
   isActive: boolean;
-  isOnlineMode: boolean; // New field for online mode
-  attendanceRecords: AttendanceRecord[];
+  isOnlineMode: boolean;
+  attendanceRecords: AttendanceRecord[]; // Current session records
+  sessions: ClassSession[]; // All historical sessions
 }
 
 export interface AttendanceRecord {

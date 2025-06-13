@@ -26,7 +26,8 @@ export {
   deleteClass, 
   toggleClassStatus,
   toggleOnlineMode,
-  bulkAddStudentsToClass
+  bulkAddStudentsToClass,
+  getClassSessionsForDate
 } from './classService';
 
 // Re-export attendance service functions

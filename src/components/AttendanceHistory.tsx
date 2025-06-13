@@ -17,9 +17,10 @@ import {
   getClassAttendance, 
   getUserById,
 } from "@/lib/data";
-import { CalendarIcon, FileDown, Filter } from "lucide-react";
+import { getClassSessionsForDate } from "@/lib/classService";
+import { CalendarIcon, FileDown, Filter, Clock } from "lucide-react";
 import { format } from "date-fns";
-import { Class, AttendanceRecord } from "@/lib/types";
+import { Class, AttendanceRecord, ClassSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface AttendanceHistoryProps {
@@ -30,6 +31,8 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [filteredRecords, setFilteredRecords] = useState<AttendanceRecord[]>([]);
   const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
+  const [dateSessions, setDateSessions] = useState<ClassSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -41,15 +44,32 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const filterRecordsByDate = (records: AttendanceRecord[], date: Date | undefined) => {
     if (!date) {
       setFilteredRecords(records);
+      setDateSessions([]);
+      setSelectedSession(null);
       return;
     }
     
-    const filtered = records.filter(record => {
-      const recordDate = new Date(record.timestamp);
-      return recordDate.toDateString() === date.toDateString();
-    });
+    // Get sessions for selected date
+    const sessions = getClassSessionsForDate(classData.id, date);
+    setDateSessions(sessions);
+    setSelectedSession(null);
     
-    setFilteredRecords(filtered);
+    if (sessions.length === 0) {
+      // No sessions found, show current day records if any
+      const filtered = records.filter(record => {
+        const recordDate = new Date(record.timestamp);
+        return recordDate.toDateString() === date.toDateString();
+      });
+      setFilteredRecords(filtered);
+    } else {
+      // Show message to select a session
+      setFilteredRecords([]);
+    }
+  };
+
+  const handleSessionSelect = (session: ClassSession) => {
+    setSelectedSession(session);
+    setFilteredRecords(session.attendanceRecords);
   };
 
   const exportFilteredCSV = () => {
@@ -74,9 +94,10 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'all-dates';
+    const sessionStr = selectedSession ? `_session${dateSessions.indexOf(selectedSession) + 1}` : '';
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `attendance_${dateStr}_${classData.name.replace(/\s+/g, '_')}.csv`);
+    link.setAttribute('download', `attendance_${dateStr}${sessionStr}_${classData.name.replace(/\s+/g, '_')}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -84,12 +105,13 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     
     toast({
       title: "Export Successful",
-      description: `Attendance data for ${selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'all dates'} has been exported.`
+      description: `Attendance data exported successfully.`
     });
   };
 
   const clearDateFilter = () => {
     setSelectedDate(undefined);
+    setSelectedSession(null);
     filterRecordsByDate(allRecords, undefined);
   };
 
@@ -125,17 +147,58 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
                 </Button>
               )}
               
-              <Button variant="outline" size="sm" onClick={exportFilteredCSV}>
-                <FileDown className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
+              {filteredRecords.length > 0 && (
+                <Button variant="outline" size="sm" onClick={exportFilteredCSV}>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Show sessions for selected date */}
+          {selectedDate && dateSessions.length > 0 && (
+            <div className="mb-4">
+              <h4 className="font-medium mb-3">
+                Class sessions on {format(selectedDate, 'MMM dd, yyyy')}:
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {dateSessions.map((session, index) => (
+                  <Button
+                    key={session.sessionId}
+                    variant={selectedSession?.sessionId === session.sessionId ? "default" : "outline"}
+                    className="justify-start h-auto p-3"
+                    onClick={() => handleSessionSelect(session)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4" />
+                      <div className="text-left">
+                        <div className="font-medium">Class {index + 1}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(session.startTime), 'HH:mm')} - {
+                            session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
+                          }
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {session.attendanceRecords.length} records
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {filteredRecords.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No attendance records found for {selectedDate ? format(selectedDate, 'MMM dd, yyyy') : 'the selected criteria'}.
+              {selectedDate && dateSessions.length > 0 
+                ? "Select a class session above to view attendance records."
+                : selectedDate 
+                  ? `No attendance records found for ${format(selectedDate, 'MMM dd, yyyy')}.`
+                  : "No attendance records found for the selected criteria."
+              }
             </div>
           ) : (
             <div className="border rounded-md">

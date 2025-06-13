@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { authenticateUser, UserRole } from "@/lib/data";
 import { useAuth } from "@/lib/auth-context";
 import { Shield, User, Lock, Calendar } from "lucide-react";
+import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
 
 const Login = () => {
   const [userId, setUserId] = useState("");
@@ -18,6 +19,7 @@ const Login = () => {
   const [role, setRole] = useState<UserRole>("student");
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { login } = useAuth();
@@ -170,7 +172,10 @@ const Login = () => {
             
             {/* Forgot Password Link */}
             <div className="text-center">
-              <button className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium">
+              <button 
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
+              >
                 Forgot your password?
               </button>
             </div>
@@ -194,6 +199,11 @@ const Login = () => {
           </CardFooter>
         </Card>
       </div>
+
+      <ForgotPasswordDialog 
+        open={showForgotPassword} 
+        onOpenChange={setShowForgotPassword} 
+      />
     </div>
   );
 };
