@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,16 +11,19 @@ import { addUser, deleteUser, UserRole, getAllUsers, User } from "@/lib/data";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Trash2, Plus, Camera, X } from "lucide-react";
+import { Trash2, Plus, Camera, X, Upload } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import UserInfo from "@/components/UserInfo";
+import CSVTeacherUpload from "@/components/CSVTeacherUpload";
 
 const Register = () => {
   const [role, setRole] = useState<UserRole>("student");
   const [users, setUsers] = useState<User[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false);
   const [newUserId, setNewUserId] = useState("");
   const [newName, setNewName] = useState("");
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [enablePhotoUpload, setEnablePhotoUpload] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const navigate = useNavigate();
@@ -96,6 +100,11 @@ const Register = () => {
       role,
     };
 
+    // Add phone number for students
+    if (role === "student" && newPhoneNumber.trim()) {
+      userData.phoneNumber = newPhoneNumber;
+    }
+
     // Add photos only for students if photo upload is enabled
     if (role === "student" && enablePhotoUpload && uploadedPhotos.length > 0) {
       userData.photos = uploadedPhotos;
@@ -113,10 +122,7 @@ const Register = () => {
       setUsers(getAllUsers());
       
       // Reset form and close dialog
-      setNewUserId("");
-      setNewName("");
-      setEnablePhotoUpload(false);
-      setUploadedPhotos([]);
+      resetForm();
       setIsAddDialogOpen(false);
     }
   };
@@ -138,8 +144,14 @@ const Register = () => {
   const resetForm = () => {
     setNewUserId("");
     setNewName("");
+    setNewPhoneNumber("");
     setEnablePhotoUpload(false);
     setUploadedPhotos([]);
+  };
+
+  const handleCSVUploadComplete = () => {
+    setUsers(getAllUsers());
+    setIsCSVUploadOpen(false);
   };
 
   return (
@@ -168,10 +180,18 @@ const Register = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between py-4">
               <CardTitle className="text-xl">{role === "student" ? "Students" : "Teachers"}</CardTitle>
-              <Button onClick={() => {resetForm(); setIsAddDialogOpen(true);}} size="sm" className="ml-auto">
-                <Plus className="mr-2" size={16} />
-                Add {role === "student" ? "Student" : "Teacher"}
-              </Button>
+              <div className="flex gap-2">
+                {role === "teacher" && (
+                  <Button onClick={() => setIsCSVUploadOpen(true)} size="sm" variant="outline">
+                    <Upload className="mr-2" size={16} />
+                    Upload CSV
+                  </Button>
+                )}
+                <Button onClick={() => {resetForm(); setIsAddDialogOpen(true);}} size="sm" className="ml-auto">
+                  <Plus className="mr-2" size={16} />
+                  Add {role === "student" ? "Student" : "Teacher"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {filteredUsers.length > 0 ? (
@@ -180,7 +200,7 @@ const Register = () => {
                     <TableRow>
                       <TableHead>User ID</TableHead>
                       <TableHead>Name</TableHead>
-                      {role === "student" && <TableHead>Photos</TableHead>}
+                      {role === "student" && <TableHead>Phone</TableHead>}
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -191,7 +211,7 @@ const Register = () => {
                         <TableCell>{user.name}</TableCell>
                         {role === "student" && (
                           <TableCell>
-                            {user.photos ? `${user.photos.length} photos` : "No photos"}
+                            {(user as any).phoneNumber || "Not provided"}
                           </TableCell>
                         )}
                         <TableCell className="text-right">
@@ -222,6 +242,16 @@ const Register = () => {
         </CardFooter>
       </Card>
       
+      {/* CSV Upload Dialog for Teachers */}
+      <Dialog open={isCSVUploadOpen} onOpenChange={setIsCSVUploadOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Upload Teachers CSV</DialogTitle>
+          </DialogHeader>
+          <CSVTeacherUpload onTeachersAdded={handleCSVUploadComplete} />
+        </DialogContent>
+      </Dialog>
+      
       {/* Add User Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -250,6 +280,19 @@ const Register = () => {
                 required 
               />
             </div>
+
+            {/* Phone Number for Students */}
+            {role === "student" && (
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+                <Input 
+                  id="phoneNumber" 
+                  value={newPhoneNumber} 
+                  onChange={(e) => setNewPhoneNumber(e.target.value)} 
+                  placeholder="Enter phone number" 
+                />
+              </div>
+            )}
 
             {/* Photo Upload Section (Students Only) */}
             {role === "student" && (

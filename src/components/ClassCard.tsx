@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { deleteClass, toggleClassStatus, toggleOnlineMode, getUserById } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Play, Pause, Trash2, Users, ClipboardList, History, Wifi, WifiOff, Upload } from "lucide-react";
+import { Play, Pause, Trash2, Users, ClipboardList, History, Wifi, WifiOff, Upload, ExternalLink, Info } from "lucide-react";
 import AttendanceList from "./AttendanceList";
 import AttendanceDashboard from "./AttendanceDashboard";
 import AttendanceHistory from "./AttendanceHistory";
@@ -132,6 +133,29 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
               onCheckedChange={handleToggleOnlineMode}
             />
           </div>
+
+          {/* Online Mode Information */}
+          {classData.isOnlineMode && (
+            <Alert className="border-blue-200 bg-blue-50">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-sm">
+                <div className="space-y-2">
+                  <p className="font-medium text-blue-700">Online Mode Active</p>
+                  <p className="text-blue-600">
+                    Online attendance can be fetched from Google Meet through our extension.
+                  </p>
+                  <a 
+                    href="#" 
+                    className="inline-flex items-center text-blue-700 hover:text-blue-800 underline text-sm font-medium"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    Get Extension
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </a>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
         <CardFooter className="pt-2 flex flex-wrap gap-2">
           <Button 

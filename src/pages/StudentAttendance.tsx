@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,8 @@ import { getStudentActiveClass, markAttendance, verifyFaceIdentity } from "@/lib
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/use-toast";
 import ImageUpload from "@/components/ImageUpload";
-import { RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import UserInfo from "@/components/UserInfo";
 
 const StudentAttendance = () => {
@@ -122,7 +124,24 @@ const StudentAttendance = () => {
           <CardContent>
             {activeClass ? (
               <>
-                {processingStatus === 'success' ? (
+                {/* Online Mode Restriction */}
+                {activeClass.isOnlineMode ? (
+                  <div className="text-center py-8 space-y-4">
+                    <AlertCircle className="w-16 h-16 text-blue-600 mx-auto" />
+                    <div className="space-y-2">
+                      <p className="text-lg font-medium text-blue-600">Online Class in Progress</p>
+                      <p className="text-muted-foreground">
+                        Online class "{activeClass.name}" is going on. Teacher will mark your attendance.
+                      </p>
+                    </div>
+                    <Alert className="border-blue-200 bg-blue-50">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-sm text-blue-700">
+                        Please wait for your teacher to mark attendance or join the class if required.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                ) : processingStatus === 'success' ? (
                   <div className="text-center py-8 space-y-4">
                     <CheckCircle className="w-16 h-16 text-success mx-auto" />
                     <p className="text-lg font-medium text-success">Attendance Successful</p>
