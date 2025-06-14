@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -9,58 +9,60 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Lock, Shield, User } from "lucide-react";
 import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
-import { useSupabaseAuth } from "@/lib/supabase-auth";
-
-// This preserves almost all your original UI code, swapping in Supabase for auth
+import { useAuth } from "@/lib/auth-context";
+import { authenticateUser } from "@/lib/userService";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState<"student" | "teacher" | "admin">("student");
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [isRegister, setIsRegister] = useState(false);
-  const [name, setName] = useState(""); // for registration
   const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { signIn, signUp, loading, user } = useSupabaseAuth();
+  const { currentUser, login } = useAuth();
 
   // Authenticated users are redirected
-  React.useEffect(() => {
-    if (user) {
-      navigate(role === "teacher" ? "/teacher-dashboard" : "/student-attendance");
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === "teacher") {
+        navigate("/teacher-dashboard");
+      } else if (currentUser.role === "student") {
+        navigate("/student-attendance");
+      } else if (currentUser.role === "admin") {
+        navigate("/admin-login");
+      }
     }
-  }, [user, navigate, role]);
+  }, [currentUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
-    if (isRegister) {
-      // Registration flow
-      const { error } = await signUp(email, password, name, role);
-      if (error) {
-        setError(error.message ?? "Registration failed");
+    const user = authenticateUser(userId, password);
+
+    if (user) {
+      login(user);
+      if (rememberMe) {
+        localStorage.setItem("rememberedUserId", userId);
       } else {
-        setIsRegister(false);
+        localStorage.removeItem("rememberedUserId");
       }
+      setIsLoading(false);
+      // Redirect handled by useEffect above
     } else {
-      // Login flow
-      const { error } = await signIn(email, password);
-      if (error) {
-        if (error.message?.includes("Email not confirmed")) {
-          setError("Please check your email and confirm your signup before logging in.");
-        } else {
-          setError(error.message ?? "Login failed");
-        }
-      }
-      // Navigate is handled by useEffect above
+      setError("Invalid username or password.");
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
+  useEffect(() => {
+    const remembered = localStorage.getItem("rememberedUserId");
+    if (remembered) setUserId(remembered);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -78,25 +80,23 @@ const Login = () => {
         <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold text-gray-900">
-              {isRegister ? "Register" : "Welcome Back"}
+              Welcome Back
             </CardTitle>
             <p className="text-gray-600 text-sm mt-2">
-              {isRegister
-                ? "Create your account with your role"
-                : "Please sign in to your account"}
+              Please sign in to your account
             </p>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Role Selection */}
               <div className="space-y-3">
                 <Label className="text-sm font-semibold text-gray-700">
-                  Sign {isRegister ? "up" : "in"} as
+                  Sign in as
                 </Label>
-                <RadioGroup 
-                  value={role} 
-                  onValueChange={(value) => setRole(value)}
+                <RadioGroup
+                  value={role}
+                  onValueChange={(value) => setRole(value as typeof role)}
                   className="flex space-x-6"
                 >
                   <div className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
@@ -107,121 +107,92 @@ const Login = () => {
                     <RadioGroupItem value="teacher" id="teacher" />
                     <Label htmlFor="teacher" className="cursor-pointer font-medium">Teacher</Label>
                   </div>
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
+                    <RadioGroupItem value="admin" id="admin" />
+                    <Label htmlFor="admin" className="cursor-pointer font-medium">Admin</Label>
+                  </div>
                 </RadioGroup>
               </div>
-              
-              {isRegister && (
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-semibold text-gray-700">Full Name</Label>
+
+              {/* Username Input */}
+              <div className="space-y-2">
+                <Label htmlFor="userId" className="text-sm font-semibold text-gray-700">Username</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    id="name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="Enter your full name"
+                    id="userId"
+                    type="text"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    placeholder="Enter your username"
+                    className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
                     required
                   />
                 </div>
-              )}
-
-              {/* Email Input */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold text-gray-700">Email</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input 
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)} 
-                    placeholder="Enter your email" 
-                    className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    required 
-                  />
-                </div>
               </div>
-              
+
               {/* Password Input */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-semibold text-gray-700">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)} 
-                    placeholder="Enter your password" 
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
                     className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    required 
+                    required
                   />
                 </div>
               </div>
-              
+
               {/* Remember Me */}
-              {!isRegister && (
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="remember" 
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked === true)}
-                  />
-                  <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
-                    Remember me
-                  </Label>
-                </div>
-              )}
-              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
+                  Remember me
+                </Label>
+              </div>
+
               {/* Error Message */}
               {error && (
                 <div className="text-red-600 text-sm">{error}</div>
               )}
 
-              {/* Login/Register Button */}
-              <Button 
-                type="submit" 
+              {/* Login Button */}
+              <Button
+                type="submit"
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-                disabled={isLoading || loading}
+                disabled={isLoading}
               >
-                {(isLoading || loading) ? (
+                {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>{isRegister ? "Registering..." : "Signing in..."}</span>
+                    <span>Signing in...</span>
                   </div>
                 ) : (
-                  isRegister ? "Register" : "Sign In"
+                  "Sign In"
                 )}
               </Button>
             </form>
-            
-            {/* Forgot Password Link */}
-            {!isRegister && (
-              <div className="text-center">
-                <button 
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
-                >
-                  Forgot your password?
-                </button>
-              </div>
-            )}
 
-            {/* Toggle Login/Register */}
-            <div className="text-center pt-2">
+            {/* Forgot Password Link */}
+            <div className="text-center">
               <button
-                className="text-xs text-blue-500 underline w-full text-center transition-colors"
-                type="button"
-                onClick={() => {
-                  setIsRegister(r => !r);
-                  setError(null);
-                }}
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
               >
-                {isRegister
-                  ? "Already have an account? Log in"
-                  : "Don't have an account? Register"}
+                Forgot your password?
               </button>
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex flex-col space-y-4 pt-4">
             {/* Admin Access */}
             <Button
@@ -232,7 +203,7 @@ const Login = () => {
               <Shield className="h-4 w-4 mr-2 group-hover:text-blue-600 transition-colors" />
               <span className="group-hover:text-blue-600 transition-colors">Administrator Access</span>
             </Button>
-            
+
             {/* Security Badge */}
             <div className="text-center text-xs text-gray-500">
               🔒 Your data is protected with enterprise-grade security
@@ -241,13 +212,12 @@ const Login = () => {
         </Card>
       </div>
 
-      <ForgotPasswordDialog 
-        open={showForgotPassword} 
-        onOpenChange={setShowForgotPassword} 
+      <ForgotPasswordDialog
+        open={showForgotPassword}
+        onOpenChange={setShowForgotPassword}
       />
     </div>
   );
 };
 
 export default Login;
-

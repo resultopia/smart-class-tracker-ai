@@ -9,33 +9,33 @@ import StudentAttendance from "./pages/StudentAttendance";
 import Register from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 import { AuthProvider, useAuth } from "./lib/auth-context";
-import { SupabaseAuthProvider } from "./lib/supabase-auth";
-import AuthPage from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
 // Protected route component
-const ProtectedRoute = ({ 
-  children, 
-  requiredRole 
-}: { 
+const ProtectedRoute = ({
+  children,
+  requiredRole
+}: {
   children: React.ReactNode;
   requiredRole?: "student" | "teacher" | "admin";
 }) => {
   const { currentUser, isLoading } = useAuth();
-  
+
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    );
   }
-  
+
   if (!currentUser) {
     return <Navigate to="/" replace />;
   }
-  
+
   if (requiredRole && currentUser.role !== requiredRole) {
     return <Navigate to="/" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
@@ -43,24 +43,25 @@ const ProtectedRoute = ({
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<AuthPage />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route 
-        path="/teacher-dashboard" 
+      <Route path="/" element={<Login />} />
+      <Route
+        path="/teacher-dashboard"
         element={
           <ProtectedRoute requiredRole="teacher">
             <TeacherDashboard />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/student-attendance" 
+      <Route
+        path="/student-attendance"
         element={
           <ProtectedRoute requiredRole="student">
             <StudentAttendance />
           </ProtectedRoute>
-        } 
+        }
       />
+      <Route path="/register" element={<Register />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -69,13 +70,13 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <SupabaseAuthProvider>
+      <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <AppRoutes />
         </TooltipProvider>
-      </SupabaseAuthProvider>
+      </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>
 );
