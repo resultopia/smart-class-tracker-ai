@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Users, UserMinus, UserPlus, Upload } from "lucide-react";
-import { getUsersByRole } from "@/lib/data";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Class } from "@/lib/types";
 import CSVUpload from "./CSVUpload";
@@ -15,55 +16,70 @@ interface EditParticipantsDialogProps {
   onStudentsUpdated: (newIds: string[]) => void;
 }
 
+// Updated student type for clarity
+interface StudentProfile {
+  id: string;        // uuid
+  user_id: string;   // username
+  name: string;
+}
+
 const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdated }: EditParticipantsDialogProps) => {
   const { toast } = useToast();
-  // All students in the system
-  const [allStudents, setAllStudents] = useState<{ userId: string, name: string }[]>([]);
+  // All students in the system, each with uuid + username
+  const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
   const [search, setSearch] = useState("");
-  // Locally editable list of IDs
+  // Locally editable list of UUIDs
   const [studentIds, setStudentIds] = useState<string[]>(classData.studentIds);
 
   useEffect(() => { setStudentIds(classData.studentIds); }, [classData.studentIds]);
   useEffect(() => {
     const fetchStudents = async () => {
-      const students = await getUsersByRole("student");
-      setAllStudents(students);
+      // Fetch uuid + username + name for all students
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, user_id, name")
+        .eq("role", "student");
+      if (error || !data) {
+        setAllStudents([]);
+        return;
+      }
+      setAllStudents(data as StudentProfile[]);
     };
     fetchStudents();
   }, []);
   
-  // Filtering helpers
+  // Filtering helpers -- filter by username or name
   const filteredAllStudents = allStudents.filter(st =>
     st.name.toLowerCase().includes(search.toLowerCase()) ||
-    st.userId.toLowerCase().includes(search.toLowerCase())
+    st.user_id.toLowerCase().includes(search.toLowerCase())
   );
   const selectedSet = new Set(studentIds);
 
-  // Add student
-  const addStudent = (id: string) => {
-    if (!selectedSet.has(id)) setStudentIds([...studentIds, id]);
+  // Add student by UUID
+  const addStudent = (uuid: string) => {
+    if (!selectedSet.has(uuid)) setStudentIds([...studentIds, uuid]);
   };
-  // Remove student
-  const removeStudent = (id: string) => {
-    setStudentIds(studentIds.filter(sid => sid !== id));
+  // Remove student by UUID
+  const removeStudent = (uuid: string) => {
+    setStudentIds(studentIds.filter(sid => sid !== uuid));
   };
 
-  // Save: propagate changes upward
+  // Save: propagate UUID changes upward
   const handleSave = async () => {
     onStudentsUpdated(studentIds);
     toast({ title: "Participants Updated", description: "Student list updated." });
     onOpenChange(false);
   };
 
-  // Handle CSV upload: Only add unique IDs that are not already present and exist in system
-  const handleBulkUpload = (uploadedIds: string[]) => {
-    // Filter only valid student userIds
-    const validIds = uploadedIds
-      .filter(id => 
-        allStudents.some(s => s.userId === id) && 
-        !selectedSet.has(id)
-      );
-    if (validIds.length === 0) {
+  // Handle CSV upload: uploadedIds are usernames, need to resolve to UUIDs
+  const handleBulkUpload = async (uploadedUsernames: string[]) => {
+    // Find those not already present and valid
+    const notAlreadyPresentUsernames = uploadedUsernames.filter(un =>
+      !allStudents
+        .filter(s => studentIds.includes(s.id))
+        .some(s => s.user_id === un)
+    );
+    if (notAlreadyPresentUsernames.length === 0) {
       toast({
         title: "No new valid students",
         description: "No new valid student usernames found in CSV.",
@@ -71,12 +87,28 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
       });
       return;
     }
-    setStudentIds(prev => Array.from(new Set([...prev, ...validIds])));
+    // Resolve usernames to UUIDs
+    const uuidsToAdd = allStudents
+      .filter(s => notAlreadyPresentUsernames.includes(s.user_id))
+      .map(s => s.id)
+      .filter(uuid => !selectedSet.has(uuid));
+    if (uuidsToAdd.length === 0) {
+      toast({
+        title: "No new UUIDs found",
+        description: "No new students could be resolved from the CSV upload.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setStudentIds(prev => Array.from(new Set([...prev, ...uuidsToAdd])));
     toast({
       title: "Students Added",
-      description: `${validIds.length} students added from CSV.`
+      description: `${uuidsToAdd.length} students added from CSV.`
     });
   };
+
+  // Fast lookup: uuid (id) to student (username & name)
+  const uuidToStudent = Object.fromEntries(allStudents.map(stu => [stu.id, stu]));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,17 +129,18 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
               {studentIds.length === 0 && (
                 <div className="text-sm text-muted-foreground">No students in this class.</div>
               )}
-              {studentIds.map(studentId => {
-                const stu = allStudents.find(u => u.userId === studentId);
+              {studentIds.map(uuid => {
+                const stu = uuidToStudent[uuid];
                 return (
-                  <div key={studentId} className="flex items-center justify-between px-2 py-1 rounded hover:bg-red-50">
-                    <span className="text-sm">{stu?.name || studentId} 
-                      {stu && <span className="ml-1 text-xs text-muted-foreground">({stu.userId})</span>}
+                  <div key={uuid} className="flex items-center justify-between px-2 py-1 rounded hover:bg-red-50">
+                    <span className="text-sm">
+                      {stu?.name || "Unknown"} 
+                      {stu ? <span className="ml-1 text-xs text-muted-foreground">({stu.user_id})</span> : null}
                     </span>
                     <Button
                       size="icon"
                       variant="destructive"
-                      onClick={() => removeStudent(studentId)}
+                      onClick={() => removeStudent(uuid)}
                       className="ml-2"
                       title="Remove"
                     >
@@ -123,7 +156,7 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
             <div>
               <h4 className="font-medium mb-1">Add Students</h4>
               <Input
-                placeholder="Filter by name or ID"
+                placeholder="Filter by name or username"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="mb-2"
@@ -134,14 +167,17 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
                   <div className="text-sm text-muted-foreground">No students found.</div>
                 )}
                 {filteredAllStudents.map(stu => (
-                  <div key={stu.userId} className="flex items-center justify-between px-2 py-1 rounded hover:bg-green-50">
-                    <span className="text-sm">{stu.name} <span className="ml-1 text-xs text-muted-foreground">({stu.userId})</span></span>
+                  <div key={stu.id} className="flex items-center justify-between px-2 py-1 rounded hover:bg-green-50">
+                    <span className="text-sm">
+                      {stu.name}
+                      <span className="ml-1 text-xs text-muted-foreground">({stu.user_id})</span>
+                    </span>
                     <Button
                       size="icon"
                       variant="outline"
-                      onClick={() => addStudent(stu.userId)}
+                      onClick={() => addStudent(stu.id)}
                       className="ml-2"
-                      disabled={selectedSet.has(stu.userId)}
+                      disabled={selectedSet.has(stu.id)}
                       title="Add"
                     >
                       <UserPlus className="h-4 w-4" />
@@ -150,7 +186,6 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
                 ))}
               </div>
             </div>
-
             {/* Bulk CSV Upload */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -158,7 +193,10 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
                 <span className="font-medium text-sm">Bulk Add From CSV</span>
               </div>
               <CSVUpload
-                existingStudents={studentIds}
+                existingStudents={studentIds.map(uuid => {
+                  const stu = uuidToStudent[uuid];
+                  return stu?.user_id || "";
+                }).filter(Boolean)}
                 onStudentsUploaded={handleBulkUpload}
               />
             </div>
@@ -174,3 +212,4 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
 };
 
 export default EditParticipantsDialog;
+

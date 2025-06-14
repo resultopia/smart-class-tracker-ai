@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Table, 
@@ -11,23 +10,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { 
-  getClassAttendance, 
-  getUserById, 
-  markAttendance, 
-  resetTodayAttendance, 
   getStudentsAttendanceStatus 
 } from "@/lib/data";
 import { Check, X, RefreshCcw, FileDown } from "lucide-react";
 import { Class } from "@/lib/types";
+import { supabase } from "@/integrations/supabase/client";
+
+// For UI: keep usernames and names
+interface StudentAttendanceStatus {
+  uuid: string;
+  userId: string; // username
+  name: string;
+  status: "present" | "absent";
+}
 
 interface AttendanceDashboardProps {
   classData: Class;
-}
-
-interface StudentAttendanceStatus {
-  userId: string;
-  name: string;
-  status: "present" | "absent";
 }
 
 const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
@@ -36,22 +34,42 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
 
   useEffect(() => {
     if (classData) {
-      // Use an IIFE to handle async useEffect
-      (async () => {
-        await loadAttendanceData();
-      })();
+      (async () => { await loadAttendanceData(); })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classData]);
 
+  // Loads both attendance & student display data
   const loadAttendanceData = async () => {
+    // 1. Get attendance for today -- returns [{studentId: uuid, status, ...}]
     const statusData = await getStudentsAttendanceStatus(classData.id);
-    setStudentsStatus(statusData);
+    // 2. For every uuid, look up user_id (username) and name from profiles
+    const uuids = statusData.map(s => s.userId);
+    let profilesLookup: Record<string, { user_id: string; name: string }> = {};
+    if (uuids.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, user_id, name")
+        .in("id", uuids);
+      if (profiles && Array.isArray(profiles)) {
+        profiles.forEach(row => {
+          profilesLookup[row.id] = { user_id: row.user_id, name: row.name };
+        });
+      }
+    }
+    // 3. Build new list for UI
+    const all: StudentAttendanceStatus[] = statusData.map(s => ({
+      uuid: s.userId, // s.userId is actually UUID!
+      userId: profilesLookup[s.userId]?.user_id || s.userId,
+      name: profilesLookup[s.userId]?.name || "",
+      status: s.status
+    }));
+    setStudentsStatus(all);
   };
 
-  const toggleAttendance = (studentId: string, currentStatus: "present" | "absent") => {
+  const toggleAttendance = (uuid: string, currentStatus: "present" | "absent") => {
     const newStatus = currentStatus === "present" ? "absent" : "present";
-    const success = markAttendance(classData.id, studentId, newStatus);
+    const success = markAttendance(classData.id, uuid, newStatus);
 
     if (success) {
       loadAttendanceData();
@@ -87,8 +105,9 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
 
   const exportToCSV = () => {
     // Prepare CSV data
-    const headers = ['user_id', 'student_name', 'attendance_status'];
+    const headers = ['student_uuid', 'username', 'student_name', 'attendance_status'];
     const csvData = studentsStatus.map(student => [
+      student.uuid,
       student.userId,
       student.name,
       student.status
@@ -146,7 +165,8 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Student ID</TableHead>
+              <TableHead>Student UUID</TableHead>
+              <TableHead>Username</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -155,13 +175,14 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
           <TableBody>
             {studentsStatus.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-4">
+                <TableCell colSpan={5} className="text-center py-4">
                   No students in this class.
                 </TableCell>
               </TableRow>
             ) : (
               studentsStatus.map((student) => (
-                <TableRow key={student.userId}>
+                <TableRow key={student.uuid}>
+                  <TableCell>{student.uuid}</TableCell>
                   <TableCell>{student.userId}</TableCell>
                   <TableCell>{student.name}</TableCell>
                   <TableCell>
@@ -187,7 +208,7 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
                     <Button
                       variant={student.status === "present" ? "destructive" : "default"}
                       size="sm"
-                      onClick={() => toggleAttendance(student.userId, student.status)}
+                      onClick={() => toggleAttendance(student.uuid, student.status)}
                     >
                       {student.status === "present" ? "Mark Absent" : "Mark Present"}
                     </Button>
