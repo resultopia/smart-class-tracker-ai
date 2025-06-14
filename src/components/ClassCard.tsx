@@ -16,6 +16,7 @@ import ClassStatus from "./ClassStatus";
 import StudentCount from "./StudentCount";
 import OnlineModeToggle from "./OnlineModeToggle";
 import { supabase } from "@/integrations/supabase/client";
+import { updateClassParticipantsSupabase } from "@/lib/class/updateClassParticipantsSupabase";
 
 interface ClassCardProps {
   classData: Class;
@@ -229,11 +230,22 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         open={showEditParticipants}
         onOpenChange={setShowEditParticipants}
         classData={classData}
-        onStudentsUpdated={ids => {
-          import("@/lib/classService").then(mod => {
-            mod.updateClassParticipants(classData.id, teacherId, ids);
+        onStudentsUpdated={async (ids) => {
+          // Update on Supabase, then refresh class list
+          const ok = await updateClassParticipantsSupabase(classData.id, ids);
+          if (ok) {
+            toast({
+              title: "Participants Updated",
+              description: "Student list updated for class.",
+            });
             onStatusChange();
-          });
+          } else {
+            toast({
+              title: "Error updating participants",
+              description: "Failed to update the class participants.",
+              variant: "destructive"
+            });
+          }
         }}
       />
     </>
