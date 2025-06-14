@@ -29,6 +29,38 @@ async function createNewClassSession(classId: string) {
   return data;
 }
 
+// Helper to set end_time for latest open session (no end_time)
+async function endLatestOpenSession(classId: string) {
+  // Find latest session by start_time that has end_time == null
+  const { data: sessions, error } = await supabase
+    .from("class_sessions")
+    .select("*")
+    .eq("class_id", classId)
+    .is("end_time", null)
+    .order("start_time", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("Error fetching latest open session:", error.message);
+    return null;
+  }
+  if (!sessions || sessions.length === 0) {
+    return null;
+  }
+  const latestSession = sessions[0];
+
+  // Set end_time to now
+  const { error: updateError } = await supabase
+    .from("class_sessions")
+    .update({ end_time: new Date().toISOString() })
+    .eq("id", latestSession.id);
+  if (updateError) {
+    console.error("Error updating end_time for session:", updateError.message);
+    return null;
+  }
+  return latestSession.id;
+}
+
 interface AttendanceDashboardProps {
   classData: Class;
   resetFlag?: boolean; // ← New: for parent to force reset after stopping
@@ -40,6 +72,7 @@ const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDa
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const lastSessionIdRef = useRef<string | null>(null);
+  const prevActiveRef = useRef<boolean>(classData.isActive);
 
   // Loads attendance status for the LATEST session (not reused, always newly created per start)
   const loadAttendanceData = async () => {
@@ -143,7 +176,29 @@ const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDa
 
   // On classData (and on reset), reload - if the class just became active, always create a new session
   useEffect(() => {
-    loadAttendanceData();
+    // Detect transition
+    const wasActive = prevActiveRef.current;
+    const isActive = classData.isActive;
+    prevActiveRef.current = isActive;
+
+    if (isActive && !wasActive) {
+      // Class just started! Always create a session
+      createNewClassSession(classData.id).then((session) => {
+        if (session?.id) {
+          lastSessionIdRef.current = session.id;
+          loadAttendanceData();
+        }
+      });
+    } else if (!isActive && wasActive) {
+      // Class just stopped! Set end_time on latest session
+      endLatestOpenSession(classData.id).then(() => {
+        lastSessionIdRef.current = null;
+        loadAttendanceData();
+      });
+    } else {
+      // In other cases, just load data
+      loadAttendanceData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classData.isActive]);
 
