@@ -74,31 +74,45 @@ export function useAttendanceSession(
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Always force-create a NEW session in Supabase and reset dashboard to that session only.
+      // Debug: Starting class, force-creating new session
+      console.log(`[AttendanceSession] STARTING class: ${classData.id} (${classData.name})`);
       (async () => {
         setLoading(true);
-        // Always create a new session in Supabase, never reuse!
         const newSession = await api.forceCreateSession(classData.id);
         if (newSession?.id) {
           lastSessionIdRef.current = newSession.id;
+          console.log(`[AttendanceSession] New session created`, {
+            classId: classData.id,
+            sessionId: newSession.id,
+            time: newSession.start_time
+          });
         } else {
           lastSessionIdRef.current = null;
+          console.warn(`[AttendanceSession] Failed to create new session for class: ${classData.id}`);
         }
         await initializeAllAbsent();
         setLoading(false);
       })();
     } else if (!isActive && wasActive) {
-      // Class stopped: end latest session and blank dashboard
+      // Debug: Stopping class, ending session
+      console.log(`[AttendanceSession] STOPPING class: ${classData.id} (${classData.name})`);
       (async () => {
         setLoading(true);
         await api.endOpenSession(classData.id);
+        // Log last session Id after ending
+        console.log(`[AttendanceSession] Stopped session for class`, {
+          classId: classData.id,
+          lastSessionId: lastSessionIdRef.current,
+          time: new Date().toISOString()
+        });
         lastSessionIdRef.current = null;
         setStudentsStatus([]);
         await loadAttendanceData();
         setLoading(false);
       })();
     } else {
-      // Normal load (not active state change): always load for current session
+      // Debug: No state change, normal load
+      console.log(`[AttendanceSession] LOAD: class: ${classData.id} (${classData.name}), isActive=${isActive}`);
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
