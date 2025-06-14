@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import UserInfo from "@/components/UserInfo";
@@ -53,9 +52,10 @@ const TeacherDashboard = () => {
               No classes created yet. Create your first class to get started.
             </div>
           ) : (
+            // We pass teacherUUID (the teacher's profile UUID, not userId) to ensure correct permission checks.
             <ClassList
               classes={classes}
-              teacherId={teacherUUID || currentUser?.userId || ""} {/* Pass profile UUID, not userId */}
+              teacherId={teacherUUID || currentUser?.userId || ""}
               onStatusChange={loadClasses}
             />
           )}
