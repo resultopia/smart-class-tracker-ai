@@ -149,6 +149,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           classData={classData}
           onDelete={handleDelete}
           onEditParticipants={() => setShowEditParticipants(true)}
+          teacherId={teacherId}
         />
         <CardContent className="pb-2 space-y-3">
           <div className="flex items-center justify-between">
