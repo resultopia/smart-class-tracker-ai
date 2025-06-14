@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
@@ -17,8 +18,9 @@ export function useAttendanceSession(
   const [loading, setLoading] = useState(false);
   const [sessionInitializing, setSessionInitializing] = useState(false);
   const { toast } = useToast();
-  const lastSessionIdRef = useRef<string | null>(null);
-  const prevActiveRef = useRef<boolean>(classData.isActive);
+  // Now stores the session_id (uuid or null)
+  const activeSessionIdRef = useRef<string | null>(classData.isActive ?? null);
+  const prevSessionIdRef = useRef<string | null>(classData.isActive ?? null);
 
   // Helper: Initialize all students as absent for a fresh list
   const initializeAllAbsent = useCallback(async () => {
@@ -29,39 +31,22 @@ export function useAttendanceSession(
   // Loads current attendance for a given session
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
-    let sessionId = lastSessionIdRef.current;
 
-    if (classData.isActive) {
-      // If we haven't just created a new session for this run, fetch it
-      if (!sessionId && !sessionInitializing) {
-        sessionId = await api.fetchLatestSessionId(classData.id);
-        if (sessionId) {
-          lastSessionIdRef.current = sessionId;
-        }
-      }
+    let sessionId = classData.isActive ?? null; // isActive now stores session_id or null
 
-      if (sessionId) {
-        const [records, profiles] = await Promise.all([
-          api.fetchAttendanceRecords(classData.id, sessionId),
-          api.fetchProfiles(classData.id),
-        ]);
-        if (!records || records.length === 0) {
-          setStudentsStatus(mapProfilesToStudentsStatus(profiles, "absent"));
-        } else {
-          setStudentsStatus(mergeAttendanceWithProfiles(records, profiles ?? []));
-        }
+    if (sessionId) {
+      // Fetch records for this session id
+      const [records, profiles] = await Promise.all([
+        api.fetchAttendanceRecords(classData.id, sessionId),
+        api.fetchProfiles(classData.id),
+      ]);
+      if (!records || records.length === 0) {
+        setStudentsStatus(mapProfilesToStudentsStatus(profiles, "absent"));
       } else {
-        // If we cannot find a sessionId at this point, do not proceed
-        setStudentsStatus([]);
-        toast({
-          title: "Error",
-          description: "Session ID missing. Try restarting class.",
-          variant: "destructive",
-        });
+        setStudentsStatus(mergeAttendanceWithProfiles(records, profiles ?? []));
       }
     } else {
-      // Class inactive: blank the session id
-      lastSessionIdRef.current = null;
+      // Class is not active - show all with status null
       const profiles = await api.fetchProfiles(classData.id);
       const studentIds = classData.studentIds || [];
       setStudentsStatus(
@@ -78,76 +63,13 @@ export function useAttendanceSession(
     classData,
     setStudentsStatus,
     initializeAllAbsent,
-    sessionInitializing,
-    toast,
   ]);
 
-  // EFFECT: Handle class start/stop
+  // EFFECT: Detect change of sessionId (isActive) and reload data if needed
   useEffect(() => {
-    const wasActive = prevActiveRef.current;
-    const isActive = classData.isActive;
-    prevActiveRef.current = isActive;
-
-    if (isActive && !wasActive) {
-      // STARTING A NEW CLASS SESSION: Create and store a fresh session id *before* loading attendance
-      (async () => {
-        setSessionInitializing(true);
-        setLoading(true);
-
-        try {
-          const newSession = await api.forceCreateSession(classData.id);
-          if (newSession?.id) {
-            lastSessionIdRef.current = newSession.id;
-            toast({
-              title: "Session Created",
-              description: `Session started: ${newSession.id.substring(0,8)}...`,
-              variant: "default",
-            });
-            await initializeAllAbsent();
-          } else {
-            lastSessionIdRef.current = null;
-            toast({
-              title: "Session Creation Failed",
-              description: "Could not create session. Try again.",
-              variant: "destructive",
-            });
-          }
-        } catch (e) {
-          lastSessionIdRef.current = null;
-          toast({
-            title: "Session Error",
-            description: "Error during session creation.",
-            variant: "destructive",
-          });
-        } finally {
-          setSessionInitializing(false);
-          setLoading(false);
-          // Now that session is set, load data
-          loadAttendanceData();
-        }
-      })();
-    } else if (!isActive && wasActive) {
-      // Stopping class: End current session
-      (async () => {
-        setLoading(true);
-        try {
-          if (lastSessionIdRef.current) {
-            await api.endOpenSession(classData.id);
-            lastSessionIdRef.current = null;
-          }
-        } catch (e) {
-          toast({
-            title: "Session End Error",
-            description: "Could not end session.",
-            variant: "destructive",
-          });
-        }
-        setStudentsStatus([]);
-        await loadAttendanceData();
-        setLoading(false);
-      })();
-    } else {
-      // Otherwise, just load relevant data
+    if (classData.isActive !== prevSessionIdRef.current) {
+      activeSessionIdRef.current = classData.isActive ?? null;
+      prevSessionIdRef.current = classData.isActive ?? null;
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,11 +77,11 @@ export function useAttendanceSession(
 
   useEffect(() => {
     if (resetFlag) {
-      lastSessionIdRef.current = null;
+      activeSessionIdRef.current = classData.isActive ?? null;
       loadAttendanceData();
       if (onResetDone) onResetDone();
     }
-  }, [resetFlag, loadAttendanceData, onResetDone]);
+  }, [resetFlag, loadAttendanceData, onResetDone, classData.isActive]);
 
   // Mark present/absent for the current session ONLY
   const toggleAttendance = async (
@@ -177,7 +99,7 @@ export function useAttendanceSession(
     }
 
     setLoading(true);
-    let sessionId = lastSessionIdRef.current;
+    let sessionId = classData.isActive ?? null; // uuid or null
     if (!sessionId) {
       setLoading(false);
       toast({
@@ -213,9 +135,8 @@ export function useAttendanceSession(
   // Reset all records for the current session ONLY
   const resetAttendance = async () => {
     setLoading(true);
-    let sessionId = lastSessionIdRef.current;
+    let sessionId = classData.isActive ?? null;
     if (!sessionId) {
-      // Only allow if session id is present!
       setLoading(false);
       toast({
         title: "Error",

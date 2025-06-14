@@ -33,49 +33,78 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const [dashboardResetFlag, setDashboardResetFlag] = useState(false);
   const { toast } = useToast();
 
-  // Handler to start/stop class and manage sessions
+  // Handler to start/stop class and manage sessions (now with session_id logic)
   const handleToggleStatus = async () => {
     if (classData.isActive) {
-      // Stop class: set is_active false, end current session
-      const { error } = await supabase
-        .from("classes")
-        .update({ is_active: false })
-        .eq("id", classData.id);
-      if (!error) {
-        onStatusChange();
-        setDashboardResetFlag(true); // trigger dashboard reset
-        toast({
-          title: "Class Stopped",
-          description: "Session ended and saved. Attendance reset.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to stop class.",
-          variant: "destructive",
-        });
+      // Stop class: set is_active NULL, end current session
+      if (classData.isActive) {
+        // End current session
+        const sessionId = classData.isActive;
+        // Update classes.is_active to NULL
+        const { error: updateClassError } = await supabase
+          .from("classes")
+          .update({ is_active: null })
+          .eq("id", classData.id);
+
+        // Update class_sessions.end_time to now
+        if (sessionId) {
+          await supabase
+            .from("class_sessions")
+            .update({ end_time: new Date().toISOString() })
+            .eq("id", sessionId);
+        }
+
+        if (!updateClassError) {
+          onStatusChange();
+          setDashboardResetFlag(true); // trigger dashboard reset
+          toast({
+            title: "Class Stopped",
+            description: "Session ended and saved. Attendance reset.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to stop class.",
+            variant: "destructive",
+          });
+        }
       }
     } else {
-      // Start new session on class start
-      const { error } = await supabase
-        .from("classes")
-        .update({ is_active: true })
-        .eq("id", classData.id);
+      // Start new session: create class_sessions + set is_active to new session_id
+      const { data: newSession, error: sessionError } = await supabase
+        .from("class_sessions")
+        .insert({
+          class_id: classData.id,
+          start_time: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-      // Also create a new session row for class start
-      // Session will be created on first attendance, so just mark as active here
+      if (!sessionError && newSession?.id) {
+        // Update classes.is_active with the new session_id
+        const { error: updateClassError } = await supabase
+          .from("classes")
+          .update({ is_active: newSession.id })
+          .eq("id", classData.id);
 
-      if (!error) {
-        onStatusChange();
-        setDashboardResetFlag(false);
-        toast({
-          title: "Class Started",
-          description: "Session started. Students can mark attendance.",
-        });
+        if (!updateClassError) {
+          onStatusChange();
+          setDashboardResetFlag(false);
+          toast({
+            title: "Class Started",
+            description: "Session started. Students can mark attendance.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to start class.",
+            variant: "destructive",
+          });
+        }
       } else {
         toast({
           title: "Error",
-          description: "Failed to start class.",
+          description: "Failed to create session.",
           variant: "destructive",
         });
       }
@@ -127,8 +156,9 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         />
         <CardContent className="pb-2 space-y-3">
           <div className="flex items-center justify-between">
-            <ClassStatus isActive={classData.isActive} />
-            {classData.isActive && (
+            {/* NEW: Pass isActive as boolean for display, but internally it is a session id or null */}
+            <ClassStatus isActive={!!classData.isActive} />
+            {!!classData.isActive && (
               <ClassTodayAttendanceSummary classData={classData} />
             )}
           </div>
@@ -146,7 +176,10 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         </CardContent>
         <CardFooter>
           <ClassCardFooter
-            classData={classData}
+            classData={{
+              ...classData,
+              isActive: !!classData.isActive, // For button presentation only
+            }}
             onToggleStatus={handleToggleStatus}
             onShowDashboard={() => setShowAttendanceDashboard(true)}
             onShowHistory={() => setShowAttendanceHistory(true)}
@@ -210,4 +243,3 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
 };
 
 export default ClassCard;
-

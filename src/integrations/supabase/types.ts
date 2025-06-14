@@ -93,26 +93,33 @@ export type Database = {
       classes: {
         Row: {
           id: string
-          is_active: boolean
+          is_active: string | null
           is_online_mode: boolean
           name: string
           teacher_id: string | null
         }
         Insert: {
           id?: string
-          is_active?: boolean
+          is_active?: string | null
           is_online_mode?: boolean
           name: string
           teacher_id?: string | null
         }
         Update: {
           id?: string
-          is_active?: boolean
+          is_active?: string | null
           is_online_mode?: boolean
           name?: string
           teacher_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "classes_is_active_fkey"
+            columns: ["is_active"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classes_teacher_id_fkey"
             columns: ["teacher_id"]
