@@ -193,7 +193,8 @@ export function useAttendanceHistory(classData: Class) {
     const headers = ['student_id', 'student_name', 'date', 'time', 'status'];
     const csvData: string[][] = [];
     for (const record of filteredRecords) {
-      const name = userLookup[record.studentId] || "Unknown";
+      const studentInfo = userLookup[record.studentId];
+      const name = studentInfo?.name || "Unknown";
       const recordDate = new Date(record.timestamp);
       csvData.push([
         record.studentId,
