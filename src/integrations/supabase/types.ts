@@ -161,7 +161,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          id: string
+          id?: string
           name: string
           phone_number?: string | null
           role: string
