@@ -75,7 +75,8 @@ const StudentAttendance = () => {
       const verified = await verifyFaceIdentity(base64Data, currentUser.userId);
       
       if (verified) {
-        const attendanceMarked = markAttendance(activeClass.id, currentUser.userId, "present");
+        // FIX: Await markAttendance
+        const attendanceMarked = await markAttendance(activeClass.id, currentUser.userId, "present");
         
         if (attendanceMarked) {
           setProcessingStatus('success');
