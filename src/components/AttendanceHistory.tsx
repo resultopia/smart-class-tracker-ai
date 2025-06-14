@@ -68,9 +68,24 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     }
   };
 
+  // Util: Get combined attendance list for session (present + absent)
+  const getAllRecordsForSession = (session: ClassSession) => {
+    // Map student ID to record, including explicit 'absent' if none found
+    return classData.studentIds.map((studentId) => {
+      const record = session.attendanceRecords.find(r => r.studentId === studentId);
+      if (record) return record;
+      // Create a placeholder absent record if none exists
+      return {
+        studentId,
+        timestamp: session.startTime, // use session start as created time
+        status: "absent"
+      };
+    });
+  };
+
   const handleSessionSelect = (session: ClassSession) => {
     setSelectedSession(session);
-    setFilteredRecords(session.attendanceRecords);
+    setFilteredRecords(getAllRecordsForSession(session));
   };
 
   const deleteSession = (sessionId: string) => {
@@ -119,13 +134,28 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
           ...cls,
           sessions: cls.sessions.map(session => {
             if (session.sessionId === selectedSession.sessionId) {
+              // Update (toggle) or add missing record
+              const existingRecordIdx = session.attendanceRecords.findIndex(
+                r => r.studentId === studentId
+              );
+              let updatedAttendanceRecords;
+              if (existingRecordIdx >= 0) {
+                // Toggle, update status
+                updatedAttendanceRecords = session.attendanceRecords.map(r =>
+                  r.studentId === studentId
+                    ? { ...r, status: newStatus, timestamp: new Date() }
+                    : r
+                );
+              } else {
+                // Add new present record
+                updatedAttendanceRecords = [
+                  ...session.attendanceRecords,
+                  { studentId, timestamp: new Date(), status: newStatus }
+                ];
+              }
               return {
                 ...session,
-                attendanceRecords: session.attendanceRecords.map(record => 
-                  record.studentId === studentId 
-                    ? { ...record, status: newStatus }
-                    : record
-                )
+                attendanceRecords: updatedAttendanceRecords
               };
             }
             return session;
@@ -137,20 +167,14 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     
     saveClasses(updatedClasses);
     
-    // Update local state with proper typing
-    const updatedRecords: AttendanceRecord[] = filteredRecords.map(record => 
-      record.studentId === studentId 
-        ? { ...record, status: newStatus }
-        : record
+    // Get updated sessions for correct timestamp and new attendance
+    const refreshed = initializeData();
+    const thisClass = refreshed.classes.find(c => c.id === classData.id);
+    const thisSession = thisClass?.sessions.find(
+      s => s.sessionId === selectedSession.sessionId
     );
-    setFilteredRecords(updatedRecords);
-    
-    // Update selected session with proper typing
-    const updatedSession: ClassSession = {
-      ...selectedSession,
-      attendanceRecords: updatedRecords
-    };
-    setSelectedSession(updatedSession);
+    setSelectedSession(thisSession || null);
+    setFilteredRecords(thisSession ? getAllRecordsForSession(thisSession) : []);
     
     toast({
       title: "Attendance Updated",
