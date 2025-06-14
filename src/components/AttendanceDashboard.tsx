@@ -11,6 +11,8 @@ import { Class } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import AttendanceTable from "./AttendanceTable";
 import type { StudentAttendanceStatus } from "./StudentAttendanceRow";
+import AttendanceActions from "./AttendanceActions";
+import AttendanceSessionPanel from "./AttendanceSessionPanel";
 
 // Helper to always create a brand new session, regardless of today's sessions.
 async function createNewClassSession(classId: string) {
@@ -67,7 +69,11 @@ interface AttendanceDashboardProps {
   onResetDone?: () => void; // ← New: callback to unset resetFlag
 }
 
-const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDashboardProps) => {
+const AttendanceDashboard = ({
+  classData,
+  resetFlag,
+  onResetDone,
+}: AttendanceDashboardProps) => {
   const [studentsStatus, setStudentsStatus] = useState<StudentAttendanceStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -353,38 +359,21 @@ const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDa
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Today's Attendance</h3>
-        <div className="space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleResetAttendance}
-            disabled={loading || !classData.isActive}
-          >
-            <RefreshCcw className="h-4 w-4 mr-2" />
-            Reset All
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportToCSV}
-            disabled={loading}
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+        <AttendanceActions
+          onResetAttendance={handleResetAttendance}
+          onExportCSV={exportToCSV}
+          loading={loading}
+          isClassActive={classData.isActive}
+        />
       </div>
-      {loading && (
-        <div className="text-center py-4 text-muted-foreground text-sm">
-          Loading attendance...
-        </div>
-      )}
-      <AttendanceTable 
-        studentsStatus={studentsStatus} 
-        onToggleAttendance={toggleAttendance} 
+      <AttendanceSessionPanel
+        studentsStatus={studentsStatus}
+        onToggleAttendance={toggleAttendance}
         isClassActive={classData.isActive}
+        loading={loading}
       />
     </div>
   );
 };
+
 export default AttendanceDashboard;
