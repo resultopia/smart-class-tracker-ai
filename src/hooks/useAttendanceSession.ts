@@ -15,6 +15,7 @@ export function useAttendanceSession(
 ) {
   const { studentsStatus, setStudentsStatus } = useClassAttendanceState([]);
   const [loading, setLoading] = useState(false);
+  const [sessionInitializing, setSessionInitializing] = useState(false);
   const { toast } = useToast();
   const lastSessionIdRef = useRef<string | null>(null);
   const prevActiveRef = useRef<boolean>(classData.isActive);
@@ -31,10 +32,12 @@ export function useAttendanceSession(
     let sessionId = lastSessionIdRef.current;
 
     if (classData.isActive) {
-      // Always use the last created session for the active class
-      if (!sessionId) {
+      // If we haven't just created a new session for this run, fetch it
+      if (!sessionId && !sessionInitializing) {
         sessionId = await api.fetchLatestSessionId(classData.id);
-        if (sessionId) lastSessionIdRef.current = sessionId;
+        if (sessionId) {
+          lastSessionIdRef.current = sessionId;
+        }
       }
 
       if (sessionId) {
@@ -48,7 +51,13 @@ export function useAttendanceSession(
           setStudentsStatus(mergeAttendanceWithProfiles(records, profiles ?? []));
         }
       } else {
-        await initializeAllAbsent();
+        // If we cannot find a sessionId at this point, do not proceed
+        setStudentsStatus([]);
+        toast({
+          title: "Error",
+          description: "Session ID missing. Try restarting class.",
+          variant: "destructive",
+        });
       }
     } else {
       // Class inactive: blank the session id
@@ -65,74 +74,80 @@ export function useAttendanceSession(
       );
     }
     setLoading(false);
-  }, [classData, setStudentsStatus, initializeAllAbsent]);
+  }, [
+    classData,
+    setStudentsStatus,
+    initializeAllAbsent,
+    sessionInitializing,
+    toast,
+  ]);
 
-  // EFFECT: Handle class start/stop state instead of relying on ambiguous previous sessions
+  // EFFECT: Handle class start/stop
   useEffect(() => {
     const wasActive = prevActiveRef.current;
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Starting a new class session: ALWAYS force-create & store a fresh session id
+      // STARTING A NEW CLASS SESSION: Create and store a fresh session id *before* loading attendance
       (async () => {
+        setSessionInitializing(true);
         setLoading(true);
+
         try {
           const newSession = await api.forceCreateSession(classData.id);
           if (newSession?.id) {
             lastSessionIdRef.current = newSession.id;
-            console.log(`[AttendanceSession] New session created & in use`, {
-              classId: classData.id,
-              sessionId: newSession.id,
-              time: newSession.start_time,
-            });
             toast({
               title: "Session Created",
-              description: `New session started: ${newSession.id}`,
+              description: `Session started: ${newSession.id.substring(0,8)}...`,
               variant: "default",
             });
+            await initializeAllAbsent();
           } else {
             lastSessionIdRef.current = null;
             toast({
               title: "Session Creation Failed",
-              description: "No session created. Check Supabase logs.",
+              description: "Could not create session. Try again.",
               variant: "destructive",
             });
           }
         } catch (e) {
           lastSessionIdRef.current = null;
           toast({
-            title: "Session Creation Error",
-            description: "Session creation threw error. See console.",
+            title: "Session Error",
+            description: "Error during session creation.",
             variant: "destructive",
           });
+        } finally {
+          setSessionInitializing(false);
+          setLoading(false);
+          // Now that session is set, load data
+          loadAttendanceData();
         }
-        await initializeAllAbsent();
-        setLoading(false);
       })();
     } else if (!isActive && wasActive) {
-      // Stopping class: End & clear the current session id
+      // Stopping class: End current session
       (async () => {
         setLoading(true);
         try {
           if (lastSessionIdRef.current) {
             await api.endOpenSession(classData.id);
-            console.log(`[AttendanceSession] Ended session:`, lastSessionIdRef.current);
+            lastSessionIdRef.current = null;
           }
         } catch (e) {
           toast({
             title: "Session End Error",
-            description: "Could not end current session.",
+            description: "Could not end session.",
             variant: "destructive",
           });
         }
-        lastSessionIdRef.current = null;
         setStudentsStatus([]);
         await loadAttendanceData();
         setLoading(false);
       })();
     } else {
-      // Just load data on changes to classData but not on start/stop
+      // Otherwise, just load relevant data
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,10 +167,17 @@ export function useAttendanceSession(
     currentStatus: "present" | "absent"
   ) => {
     if (!classData.isActive) return;
-    setLoading(true);
+    if (sessionInitializing) {
+      toast({
+        title: "Please Wait",
+        description: "Session is still being set up. Try again shortly.",
+        variant: "default",
+      });
+      return;
+    }
 
+    setLoading(true);
     let sessionId = lastSessionIdRef.current;
-    // Do NOT try to refetch! Only use our known session id
     if (!sessionId) {
       setLoading(false);
       toast({
@@ -165,7 +187,6 @@ export function useAttendanceSession(
       });
       return;
     }
-
     const newStatus = currentStatus === "present" ? "absent" : "present";
     const { error } = await api.toggleAttendanceRecord(
       classData.id,
@@ -252,7 +273,7 @@ export function useAttendanceSession(
 
   return {
     studentsStatus,
-    loading,
+    loading: loading || sessionInitializing,
     toggleAttendance,
     resetAttendance,
     exportToCSV,
