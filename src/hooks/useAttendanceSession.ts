@@ -1,18 +1,13 @@
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
 import type { StudentAttendanceStatus } from "@/components/StudentAttendanceRow";
-import {
-  createNewClassSession,
-  endLatestOpenSession,
-  getLatestSessionId,
-  getClassStudentProfiles,
-  getAttendanceRecords,
-} from "./attendanceSessionApi";
-import { useClassAttendanceState } from "./useClassAttendanceState";
-import { supabase } from "@/integrations/supabase/client";
-import { mapProfilesToStudentsStatus, mergeAttendanceWithProfiles } from "./attendanceSessionUtils";
 import * as api from "./useAttendanceSessionApi";
+import { useClassAttendanceState } from "./useClassAttendanceState";
+import { mapProfilesToStudentsStatus, mergeAttendanceWithProfiles } from "./attendanceSessionUtils";
+
+// All Supabase, no localstorage!
 
 export function useAttendanceSession(
   classData: Class,
@@ -30,7 +25,6 @@ export function useAttendanceSession(
     setStudentsStatus(mapProfilesToStudentsStatus(profiles, "absent"));
   }, [classData.id, setStudentsStatus]);
 
-  // Load attendance and profiles, split logic for readability
   const loadAttendanceData = useCallback(
     async () => {
       setLoading(true);
@@ -71,23 +65,30 @@ export function useAttendanceSession(
     [classData, setStudentsStatus, initializeAllAbsent]
   );
 
+  // EFFECT: When class active status changes, handle session creation
   useEffect(() => {
     const wasActive = prevActiveRef.current;
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
+      // Class was started: Always force-create a new session and reset dashboard to that session
       (async () => {
-        const newSession = await api.createSession(classData.id);
+        setLoading(true);
+        const newSession = await api.forceCreateSession(classData.id);
         lastSessionIdRef.current = newSession?.id || null;
         await initializeAllAbsent();
+        setLoading(false);
       })();
     } else if (!isActive && wasActive) {
+      // Class was stopped, close out open session & clear
       (async () => {
+        setLoading(true);
         await api.endOpenSession(classData.id);
         lastSessionIdRef.current = null;
         setStudentsStatus([]);
-        loadAttendanceData();
+        await loadAttendanceData();
+        setLoading(false);
       })();
     } else {
       loadAttendanceData();
@@ -112,11 +113,9 @@ export function useAttendanceSession(
     setLoading(true);
     let sessionId = lastSessionIdRef.current;
     if (!sessionId) {
-      const session = await api.createSession(classData.id);
-      if (session?.id) {
-        sessionId = session.id;
-        lastSessionIdRef.current = sessionId;
-      }
+      // Defensive: Use latest, but by logic there should always be a new session after start
+      sessionId = await api.fetchLatestSessionId(classData.id);
+      if (sessionId) lastSessionIdRef.current = sessionId;
     }
     if (sessionId) {
       const newStatus = currentStatus === "present" ? "absent" : "present";
@@ -142,11 +141,8 @@ export function useAttendanceSession(
     setLoading(true);
     let sessionId = lastSessionIdRef.current;
     if (!sessionId) {
-      const session = await api.createSession(classData.id);
-      if (session?.id) {
-        sessionId = session.id;
-        lastSessionIdRef.current = sessionId;
-      }
+      sessionId = await api.fetchLatestSessionId(classData.id);
+      if (sessionId) lastSessionIdRef.current = sessionId;
     }
     if (sessionId) {
       const { error } = await api.deleteAttendanceRecords(classData.id, sessionId);
@@ -204,3 +200,4 @@ export function useAttendanceSession(
     exportToCSV,
   };
 }
+

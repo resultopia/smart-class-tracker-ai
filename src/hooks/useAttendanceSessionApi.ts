@@ -17,6 +17,24 @@ export async function createSession(classId: string) {
   return await createNewClassSession(classId);
 }
 
+// NEW: Always create a new session (even if one exists)
+export async function forceCreateSession(classId: string) {
+  // Creates a new session even if another is open
+  const { data, error } = await supabase
+    .from("class_sessions")
+    .insert({
+      class_id: classId,
+      start_time: new Date().toISOString(),
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error("Error force-creating new session:", error.message);
+    return null;
+  }
+  return data;
+}
+
 export async function endOpenSession(classId: string) {
   return await endLatestOpenSession(classId);
 }
@@ -64,3 +82,4 @@ export async function deleteAttendanceRecords(classId: string, sessionId: string
     .eq("session_id", sessionId);
   return { error };
 }
+
