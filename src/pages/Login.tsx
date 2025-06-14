@@ -10,6 +10,8 @@ import { Calendar, Lock, User } from "lucide-react";
 import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
 import { useAuth } from "@/lib/auth-context";
 import { authenticateUser } from "@/lib/userService";
+import LoginRoleSelector from "@/components/LoginRoleSelector";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const Login = () => {
   const [userId, setUserId] = useState("");
@@ -133,93 +135,7 @@ const Login = () => {
               </div>
 
               {/* Sign in as (Enhanced Role Selector) */}
-              <div>
-                <Label className="text-sm font-semibold text-gray-700 mb-1 block">
-                  Sign in as
-                </Label>
-                <RadioGroup
-                  value={role}
-                  onValueChange={setRole}
-                  className="flex flex-col sm:flex-row gap-3 mt-2"
-                  aria-label="Sign in as"
-                >
-                  {/* Student */}
-                  <label
-                    htmlFor="student"
-                    className={`group flex-1 min-w-[128px] select-none flex items-center gap-3 px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer
-                      ${
-                        role === "student"
-                          ? "border-blue-600 bg-blue-50 shadow-md"
-                          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40"
-                      }
-                      focus-within:ring-2 focus-within:ring-blue-400`}
-                  >
-                    <RadioGroupItem
-                      value="student"
-                      id="student"
-                      className="peer"
-                    />
-                    <User className={`h-5 w-5 transition-colors ${
-                      role === "student" ? "text-blue-600" : "text-gray-400 group-hover:text-blue-500"
-                    }`} />
-                    <span className={`font-medium text-base ${
-                      role === "student" ? "text-blue-700" : "text-gray-700"
-                    }`}>
-                      Student
-                    </span>
-                  </label>
-                  {/* Teacher */}
-                  <label
-                    htmlFor="teacher"
-                    className={`group flex-1 min-w-[128px] select-none flex items-center gap-3 px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer
-                      ${
-                        role === "teacher"
-                          ? "border-purple-600 bg-purple-50 shadow-md"
-                          : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/40"
-                      }
-                      focus-within:ring-2 focus-within:ring-purple-400`}
-                  >
-                    <RadioGroupItem
-                      value="teacher"
-                      id="teacher"
-                      className="peer"
-                    />
-                    <User className={`h-5 w-5 transition-colors ${
-                      role === "teacher" ? "text-purple-700" : "text-gray-400 group-hover:text-purple-500"
-                    }`} />
-                    <span className={`font-medium text-base ${
-                      role === "teacher" ? "text-purple-700" : "text-gray-700"
-                    }`}>
-                      Teacher
-                    </span>
-                  </label>
-                  {/* Admin */}
-                  <label
-                    htmlFor="admin"
-                    className={`group flex-1 min-w-[128px] select-none flex items-center gap-3 px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer
-                      ${
-                        role === "admin"
-                          ? "border-rose-600 bg-rose-50 shadow-md"
-                          : "border-gray-200 bg-white hover:border-rose-300 hover:bg-rose-50/40"
-                      }
-                      focus-within:ring-2 focus-within:ring-rose-400`}
-                  >
-                    <RadioGroupItem
-                      value="admin"
-                      id="admin"
-                      className="peer"
-                    />
-                    <User className={`h-5 w-5 transition-colors ${
-                      role === "admin" ? "text-rose-600" : "text-gray-400 group-hover:text-rose-500"
-                    }`} />
-                    <span className={`font-medium text-base ${
-                      role === "admin" ? "text-rose-700" : "text-gray-700"
-                    }`}>
-                      Admin
-                    </span>
-                  </label>
-                </RadioGroup>
-              </div>
+              <LoginRoleSelector value={role} onChange={setRole} />
 
               {/* Remember Me */}
               <div className="flex items-center space-x-2">
@@ -244,14 +160,7 @@ const Login = () => {
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  "Sign In"
-                )}
+                {isLoading ? <LoadingSpinner /> : "Sign In"}
               </Button>
             </form>
             {/* Forgot Password Link */}
