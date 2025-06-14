@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UserInfo from "@/components/UserInfo";
 import { getStudentActiveClassSupabase } from "@/lib/class/getStudentActiveClassSupabase";
+import { supabase } from "@/integrations/supabase/client"; // <-- add this import
 
 const StudentAttendance = () => {
   const { currentUser, logout } = useAuth();
@@ -20,6 +22,7 @@ const StudentAttendance = () => {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [loading, setLoading] = useState(true);
+  const [studentUuid, setStudentUuid] = useState<string | null>(null); // <-- new state for uuid
 
   useEffect(() => {
     if (!currentUser) {
@@ -42,6 +45,27 @@ const StudentAttendance = () => {
   const checkActiveClass = async () => {
     if (!currentUser) return;
     setLoading(true);
+
+    // Get student's UUID by userId
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", currentUser.userId)
+      .maybeSingle();
+
+    if (!profile || error) {
+      setActiveClass(null);
+      setStudentUuid(null);
+      setLoading(false);
+      toast({
+        title: "Student Not Found",
+        description: "Unable to find your profile information.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setStudentUuid(profile.id);
+
     // Fetch from Supabase
     const studentClass = await getStudentActiveClassSupabase(currentUser.userId);
     setActiveClass(studentClass);
@@ -63,7 +87,7 @@ const StudentAttendance = () => {
   };
 
   const submitAttendance = async () => {
-    if (!currentUser || !activeClass || !imageBase64) return;
+    if (!currentUser || !activeClass || !imageBase64 || !studentUuid) return;
     
     setProcessingStatus('processing');
     
@@ -75,8 +99,8 @@ const StudentAttendance = () => {
       const verified = await verifyFaceIdentity(base64Data, currentUser.userId);
       
       if (verified) {
-        // FIX: Await markAttendance
-        const attendanceMarked = await markAttendance(activeClass.id, currentUser.userId, "present");
+        // Always use the UUID for markAttendance
+        const attendanceMarked = await markAttendance(activeClass.id, studentUuid, "present");
         
         if (attendanceMarked) {
           setProcessingStatus('success');
