@@ -31,7 +31,6 @@ export function useAttendanceSession(
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
 
-    // isActive is expected to be string | null (uuid or null)
     let sessionId: string | null = classData.isActive ?? null;
 
     if (sessionId) {
@@ -67,7 +66,6 @@ export function useAttendanceSession(
 
   // EFFECT: Detect change of sessionId (isActive) and reload data if needed
   useEffect(() => {
-    // Only update if the session ID (string or null) has changed
     if (classData.isActive !== prevSessionIdRef.current) {
       activeSessionIdRef.current = classData.isActive ?? null;
       prevSessionIdRef.current = classData.isActive ?? null;

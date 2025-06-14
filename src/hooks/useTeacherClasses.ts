@@ -54,7 +54,7 @@ export const useTeacherClasses = () => {
           name: cls.name,
           teacherId: cls.teacher_id,
           studentIds,
-          isActive: cls.is_active,
+          isActive: cls.is_active ?? null, // string | null
           isOnlineMode: cls.is_online_mode,
           attendanceRecords: [],
           sessions: [],

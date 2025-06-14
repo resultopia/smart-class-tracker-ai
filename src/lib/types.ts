@@ -23,7 +23,7 @@ export interface Class {
   name: string;
   teacherId: string;
   studentIds: string[];
-  isActive: boolean;
+  isActive: string | null;   // <-- updated from boolean to string | null
   isOnlineMode: boolean;
   attendanceRecords: AttendanceRecord[]; // Current session records
   sessions: ClassSession[]; // All historical sessions

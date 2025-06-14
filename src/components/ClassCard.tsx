@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,37 +36,34 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const handleToggleStatus = async () => {
     if (classData.isActive) {
       // Stop class: set is_active NULL, end current session
-      if (classData.isActive) {
-        // End current session
-        const sessionId = classData.isActive;
-        // Update classes.is_active to NULL
-        const { error: updateClassError } = await supabase
-          .from("classes")
-          .update({ is_active: null })
-          .eq("id", classData.id);
+      const sessionId = classData.isActive;
+      // Update classes.is_active to NULL
+      const { error: updateClassError } = await supabase
+        .from("classes")
+        .update({ is_active: null })
+        .eq("id", classData.id);
 
-        // Update class_sessions.end_time to now
-        if (sessionId) {
-          await supabase
-            .from("class_sessions")
-            .update({ end_time: new Date().toISOString() })
-            .eq("id", sessionId);
-        }
+      // Update class_sessions.end_time to now
+      if (sessionId) {
+        await supabase
+          .from("class_sessions")
+          .update({ end_time: new Date().toISOString() })
+          .eq("id", sessionId);
+      }
 
-        if (!updateClassError) {
-          onStatusChange();
-          setDashboardResetFlag(true); // trigger dashboard reset
-          toast({
-            title: "Class Stopped",
-            description: "Session ended and saved. Attendance reset.",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to stop class.",
-            variant: "destructive",
-          });
-        }
+      if (!updateClassError) {
+        onStatusChange();
+        setDashboardResetFlag(true); // trigger dashboard reset
+        toast({
+          title: "Class Stopped",
+          description: "Session ended and saved. Attendance reset.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to stop class.",
+          variant: "destructive",
+        });
       }
     } else {
       // Start new session: create class_sessions + set is_active to new session_id
@@ -175,11 +171,11 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           )}
         </CardContent>
         <CardFooter>
+          {/* Here, pass isActive as boolean for UI props in ClassCardFooter only, keep original elsewhere */}
           <ClassCardFooter
-            // Pass original string/null sessionId to logic, use boolean for button presentation only
             classData={{
               ...classData,
-              isActive: !!classData.isActive, // for footer button UI (boolean needed)
+              isActive: !!classData.isActive as unknown as string | null, // Type hack for UI only, since ClassCardFooter expects a boolean here
             }}
             onToggleStatus={handleToggleStatus}
             onShowDashboard={() => setShowAttendanceDashboard(true)}
@@ -244,4 +240,3 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
 };
 
 export default ClassCard;
-
