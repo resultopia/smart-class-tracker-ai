@@ -22,9 +22,10 @@ interface ClassCardProps {
   classData: Class;
   teacherId: string;
   onStatusChange: () => void;
+  anyClassActive?: boolean; // <-- new, optional
 }
 
-const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => {
+const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = false }: ClassCardProps) => {
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
   const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
@@ -170,16 +171,17 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           )}
         </CardContent>
         <CardFooter>
-          {/* Here, pass isActive as boolean for UI props in ClassCardFooter only, keep original elsewhere */}
+          {/* Pass anyClassActive to ClassCardFooter */}
           <ClassCardFooter
             classData={{
               ...classData,
-              isActive: !!classData.isActive as unknown as string | null, // Type hack for UI only, since ClassCardFooter expects a boolean here
+              isActive: !!classData.isActive as unknown as string | null,
             }}
             onToggleStatus={handleToggleStatus}
             onShowDashboard={() => setShowAttendanceDashboard(true)}
             onShowHistory={() => setShowAttendanceHistory(true)}
             onShowCSVUpload={() => setShowCSVUploadDialog(true)}
+            anyClassActive={anyClassActive}
           />
         </CardFooter>
       </Card>
