@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Class, AttendanceRecord, ClassSession } from "@/lib/types";
@@ -13,67 +13,68 @@ export function useAttendanceHistory(classData: Class) {
   const [userLookup, setUserLookup] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  // Load attendance and sessions from Supabase
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      let filteredSessions: ClassSession[] = [];
-      let attendance: AttendanceRecord[] = [];
+  // Load attendance and sessions
+  const reloadData = useCallback(async () => {
+    let filteredSessions: ClassSession[] = [];
+    let attendance: AttendanceRecord[] = [];
 
-      if (selectedDate) {
-        const dateStart = new Date(selectedDate);
-        dateStart.setHours(0, 0, 0, 0);
-        const dateEnd = new Date(dateStart);
-        dateEnd.setDate(dateStart.getDate() + 1);
+    if (selectedDate) {
+      const dateStart = new Date(selectedDate);
+      dateStart.setHours(0, 0, 0, 0);
+      const dateEnd = new Date(dateStart);
+      dateEnd.setDate(dateStart.getDate() + 1);
 
-        const { data: sessionRows } = await supabase
-          .from("class_sessions")
-          .select("*")
-          .eq("class_id", classData.id)
-          .gte("start_time", dateStart.toISOString())
-          .lt("start_time", dateEnd.toISOString());
+      const { data: sessionRows } = await supabase
+        .from("class_sessions")
+        .select("*")
+        .eq("class_id", classData.id)
+        .gte("start_time", dateStart.toISOString())
+        .lt("start_time", dateEnd.toISOString());
 
-        filteredSessions = sessionRows?.map((row) => ({
-          sessionId: row.id,
-          startTime: new Date(row.start_time),
-          endTime: row.end_time ? new Date(row.end_time) : undefined,
-          attendanceRecords: [],
-        })) || [];
-      } else {
-        const { data: sessionRows } = await supabase
-          .from("class_sessions")
-          .select("*")
-          .eq("class_id", classData.id);
-        filteredSessions = sessionRows?.map((row) => ({
-          sessionId: row.id,
-          startTime: new Date(row.start_time),
-          endTime: row.end_time ? new Date(row.end_time) : undefined,
-          attendanceRecords: [],
-        })) || [];
-      }
-      setDateSessions(filteredSessions);
-
-      const { data: recordsRows } = await supabase
-        .from("attendance_records")
+      filteredSessions = sessionRows?.map((row) => ({
+        sessionId: row.id,
+        startTime: new Date(row.start_time),
+        endTime: row.end_time ? new Date(row.end_time) : undefined,
+        attendanceRecords: [],
+      })) || [];
+    } else {
+      const { data: sessionRows } = await supabase
+        .from("class_sessions")
         .select("*")
         .eq("class_id", classData.id);
-      attendance = recordsRows?.map((row) => ({
-        studentId: row.student_id,
-        timestamp: new Date(row.timestamp),
-        status: row.status as "present" | "absent",
-        sessionId: row.session_id,
+      filteredSessions = sessionRows?.map((row) => ({
+        sessionId: row.id,
+        startTime: new Date(row.start_time),
+        endTime: row.end_time ? new Date(row.end_time) : undefined,
+        attendanceRecords: [],
       })) || [];
-      setAllRecords(attendance);
+    }
+    setDateSessions(filteredSessions);
 
-      if (!selectedDate) {
-        setFilteredRecords(attendance);
-      } else {
-        const todaySessionIds = filteredSessions.map(s => s.sessionId);
-        setFilteredRecords(attendance.filter(rec => rec.sessionId && todaySessionIds.includes(rec.sessionId)));
-      }
-    };
-    fetchAttendance();
-    // eslint-disable-next-line
+    const { data: recordsRows } = await supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("class_id", classData.id);
+    attendance = recordsRows?.map((row) => ({
+      studentId: row.student_id,
+      timestamp: new Date(row.timestamp),
+      status: row.status as "present" | "absent",
+      sessionId: row.session_id,
+    })) || [];
+    setAllRecords(attendance);
+
+    if (!selectedDate) {
+      setFilteredRecords(attendance);
+    } else {
+      const todaySessionIds = filteredSessions.map(s => s.sessionId);
+      setFilteredRecords(attendance.filter(rec => rec.sessionId && todaySessionIds.includes(rec.sessionId)));
+    }
+  // eslint-disable-next-line
   }, [classData.id, selectedDate]);
+
+  useEffect(() => {
+    reloadData();
+  }, [reloadData]);
 
   // User lookup from profiles (Supabase)
   useEffect(() => {
