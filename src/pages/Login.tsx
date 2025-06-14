@@ -12,20 +12,17 @@ import { useAuth } from "@/lib/auth-context";
 import { authenticateUser } from "@/lib/userService";
 import LoginRoleSelector from "@/components/LoginRoleSelector";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import LoginLogoHeader from "@/components/LoginLogoHeader";
+import LoginForm from "@/components/LoginForm";
+import SecurityBadge from "@/components/SecurityBadge";
+import ForgotPasswordLink from "@/components/ForgotPasswordLink";
 
 const Login = () => {
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student"); // Add role state
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { currentUser, login } = useAuth();
+  const { currentUser } = useAuth();
 
-  // Authenticated users are redirected
   useEffect(() => {
     if (currentUser) {
       if (currentUser.role === "teacher") {
@@ -38,55 +35,14 @@ const Login = () => {
     }
   }, [currentUser, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
-    const user = await authenticateUser(userId, password);
-
-    if (user) {
-      // Accept any user matching credentials, but check role for admin
-      if (user.role !== role) {
-        setError(`That user is a ${user.role}, not a ${role}.`);
-        setIsLoading(false);
-        return;
-      }
-      login(user);
-      if (rememberMe) {
-        localStorage.setItem("rememberedUserId", userId);
-        localStorage.setItem("rememberedRole", role);
-      } else {
-        localStorage.removeItem("rememberedUserId");
-        localStorage.removeItem("rememberedRole");
-      }
-      setIsLoading(false);
-      // Redirect handled by useEffect above
-    } else {
-      setError("Invalid username or password.");
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const remembered = localStorage.getItem("rememberedUserId");
-    const rememberedRole = localStorage.getItem("rememberedRole");
-    if (remembered) setUserId(remembered);
-    if (rememberedRole) setRole(rememberedRole);
-  }, []);
+  // Handler used for resetting error state & dialog after login
+  const handleSuccess = () => {};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="p-3 bg-blue-600 rounded-full">
-              <Calendar className="h-8 w-8 text-white" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Smart Attendance</h1>
-        </div>
+        <LoginLogoHeader />
 
         <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="text-center pb-4">
@@ -99,85 +55,14 @@ const Login = () => {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Username Input */}
-              <div className="space-y-2">
-                <Label htmlFor="userId" className="text-sm font-semibold text-gray-700">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="userId"
-                    type="text"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter your username"
-                    className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-semibold text-gray-700">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Sign in as (Enhanced Role Selector) */}
-              <LoginRoleSelector value={role} onChange={setRole} />
-
-              {/* Remember Me */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remember"
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked === true)}
-                />
-                <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
-                  Remember me
-                </Label>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="text-red-600 text-sm">{error}</div>
-              )}
-
-              {/* Login Button */}
-              <Button
-                type="submit"
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-                disabled={isLoading}
-              >
-                {isLoading ? <LoadingSpinner /> : "Sign In"}
-              </Button>
-            </form>
-            {/* Forgot Password Link */}
-            <div className="text-center">
-              <button
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
-              >
-                Forgot your password?
-              </button>
-            </div>
+            <LoginForm
+              onSuccess={handleSuccess}
+              setShowForgotPassword={setShowForgotPassword}
+            />
+            <ForgotPasswordLink onClick={() => setShowForgotPassword(true)} />
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 pt-4">
-            {/* Security Badge */}
-            <div className="text-center text-xs text-gray-500">
-              🔒 Your data is protected with enterprise-grade security
-            </div>
+            <SecurityBadge />
           </CardFooter>
         </Card>
       </div>
