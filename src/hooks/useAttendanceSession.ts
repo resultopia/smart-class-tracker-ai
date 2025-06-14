@@ -74,15 +74,14 @@ export function useAttendanceSession(
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Attempting to create a new session
-      console.log(`[AttendanceSession] STARTING class: ${classData.id} (${classData.name}) [attempting session create]`);
+      // Starting a new class session: ALWAYS force-create & store a fresh session id
       (async () => {
         setLoading(true);
         try {
           const newSession = await api.forceCreateSession(classData.id);
           if (newSession?.id) {
             lastSessionIdRef.current = newSession.id;
-            console.log(`[AttendanceSession] New session created`, {
+            console.log(`[AttendanceSession] New session created & in use`, {
               classId: classData.id,
               sessionId: newSession.id,
               time: newSession.start_time,
@@ -94,19 +93,17 @@ export function useAttendanceSession(
             });
           } else {
             lastSessionIdRef.current = null;
-            console.warn(`[AttendanceSession] Failed to create new session for class: ${classData.id}`);
             toast({
               title: "Session Creation Failed",
-              description: "Could not create a new session. Check Supabase logs.",
+              description: "No session created. Check Supabase logs.",
               variant: "destructive",
             });
           }
         } catch (e) {
           lastSessionIdRef.current = null;
-          console.error(`[AttendanceSession] Exception during session create:`, e);
           toast({
             title: "Session Creation Error",
-            description: "Error thrown during session creation, see console.",
+            description: "Session creation threw error. See console.",
             variant: "destructive",
           });
         }
@@ -114,22 +111,18 @@ export function useAttendanceSession(
         setLoading(false);
       })();
     } else if (!isActive && wasActive) {
-      // Debug: Stopping class, ending session
-      console.log(`[AttendanceSession] STOPPING class: ${classData.id} (${classData.name})`);
+      // Stopping class: End & clear the current session id
       (async () => {
         setLoading(true);
         try {
-          await api.endOpenSession(classData.id);
-          console.log(`[AttendanceSession] Stopped session for class`, {
-            classId: classData.id,
-            lastSessionId: lastSessionIdRef.current,
-            time: new Date().toISOString(),
-          });
+          if (lastSessionIdRef.current) {
+            await api.endOpenSession(classData.id);
+            console.log(`[AttendanceSession] Ended session:`, lastSessionIdRef.current);
+          }
         } catch (e) {
-          console.error(`[AttendanceSession] Exception during session stop:`, e);
           toast({
             title: "Session End Error",
-            description: "Error thrown during session end, see console.",
+            description: "Could not end current session.",
             variant: "destructive",
           });
         }
@@ -139,8 +132,7 @@ export function useAttendanceSession(
         setLoading(false);
       })();
     } else {
-      // Debug: No state change, normal load
-      console.log(`[AttendanceSession] LOAD: class: ${classData.id} (${classData.name}), isActive=${isActive}`);
+      // Just load data on changes to classData but not on start/stop
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,79 +151,71 @@ export function useAttendanceSession(
     uuid: string,
     currentStatus: "present" | "absent"
   ) => {
-    if (!classData.isActive) return; // Safety: Only allow during active class
+    if (!classData.isActive) return;
     setLoading(true);
 
     let sessionId = lastSessionIdRef.current;
+    // Do NOT try to refetch! Only use our known session id
     if (!sessionId) {
-      sessionId = await api.fetchLatestSessionId(classData.id);
-      if (!sessionId) {
-        // If still null, force create a new one
-        const newSession = await api.forceCreateSession(classData.id);
-        if (newSession?.id) {
-          sessionId = newSession.id;
-          lastSessionIdRef.current = sessionId;
-        }
-      } else {
-        lastSessionIdRef.current = sessionId;
-      }
-    }
-
-    if (sessionId) {
-      const newStatus = currentStatus === "present" ? "absent" : "present";
-      const { error } = await api.toggleAttendanceRecord(
-        classData.id,
-        sessionId,
-        uuid,
-        newStatus
-      );
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update attendance.",
-          variant: "destructive",
-        });
-      } else {
-        await loadAttendanceData();
-        toast({
-          title: "Attendance Updated",
-          description: `Student marked as ${newStatus}.`,
-        });
-      }
-    } else {
+      setLoading(false);
       toast({
         title: "Error",
-        description: "No active session found or created for attendance.",
+        description: "No session id found for this active class. Please restart class.",
         variant: "destructive",
+      });
+      return;
+    }
+
+    const newStatus = currentStatus === "present" ? "absent" : "present";
+    const { error } = await api.toggleAttendanceRecord(
+      classData.id,
+      sessionId,
+      uuid,
+      newStatus
+    );
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update attendance.",
+        variant: "destructive",
+      });
+    } else {
+      await loadAttendanceData();
+      toast({
+        title: "Attendance Updated",
+        description: `Student marked as ${newStatus}.`,
       });
     }
     setLoading(false);
   };
 
-  // Reset all records for the current session ONLY (leave other sessions/history alone)
+  // Reset all records for the current session ONLY
   const resetAttendance = async () => {
     setLoading(true);
     let sessionId = lastSessionIdRef.current;
     if (!sessionId) {
-      // Always look for current, but should exist since start always .forceCreateSession
-      sessionId = await api.fetchLatestSessionId(classData.id);
-      if (sessionId) lastSessionIdRef.current = sessionId;
+      // Only allow if session id is present!
+      setLoading(false);
+      toast({
+        title: "Error",
+        description: "No session id for current class. Try restarting class.",
+        variant: "destructive",
+      });
+      return;
     }
-    if (sessionId) {
-      const { error } = await api.deleteAttendanceRecords(classData.id, sessionId);
-      if (!error) {
-        await initializeAllAbsent();
-        toast({
-          title: "Attendance Reset",
-          description: "All attendance records for this session have been cleared.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to reset attendance.",
-          variant: "destructive",
-        });
-      }
+    const { error } = await api.deleteAttendanceRecords(classData.id, sessionId);
+    if (!error) {
+      await initializeAllAbsent();
+      toast({
+        title: "Attendance Reset",
+        description: "All attendance records for this session have been cleared.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to reset attendance.",
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
