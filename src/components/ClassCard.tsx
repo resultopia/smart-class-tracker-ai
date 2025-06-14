@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,15 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           <div className="flex items-center text-sm text-muted-foreground">
             <Users className="h-4 w-4 mr-1" />
             <span>{studentCount} student{studentCount !== 1 && "s"}</span>
+            {/* Edit Participants button beside student count */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-2 p-1 h-7"
+              onClick={() => setShowEditParticipants(true)}
+            >
+              Edit Participants
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="pb-2 space-y-3">
@@ -226,15 +236,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             History
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowEditParticipants(true)}
-            className="flex-1 min-w-[120px] flex-nowrap overflow-hidden text-ellipsis whitespace-nowrap justify-start px-3"
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Edit Participants
-          </Button>
+          {/* Removed Edit Participants button from here */}
 
           <Button
             variant="destructive"
