@@ -16,7 +16,7 @@ type StudentAttendanceRowProps = {
 
 const StudentAttendanceRow = ({ student, onToggleAttendance }: StudentAttendanceRowProps) => (
   <tr>
-    <td className="p-4 align-middle">{student.uuid}</td>
+    {/* Removed the uuid cell */}
     <td className="p-4 align-middle">{student.userId}</td>
     <td className="p-4 align-middle">{student.name}</td>
     <td className="p-4 align-middle">

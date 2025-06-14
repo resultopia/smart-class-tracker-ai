@@ -12,7 +12,7 @@ const AttendanceTable = ({ studentsStatus, onToggleAttendance }: AttendanceTable
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Student UUID</TableHead>
+          {/* Removed UUID column */}
           <TableHead>Username</TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Status</TableHead>
@@ -22,7 +22,7 @@ const AttendanceTable = ({ studentsStatus, onToggleAttendance }: AttendanceTable
       <TableBody>
         {studentsStatus.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={5} className="text-center py-4">
+            <TableCell colSpan={4} className="text-center py-4">
               No students in this class.
             </TableCell>
           </TableRow>

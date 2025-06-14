@@ -21,7 +21,7 @@ const AttendanceRecordsTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Student ID</TableHead>
+            {/* Removed Student ID column */}
             <TableHead>Name</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Time</TableHead>
@@ -35,7 +35,7 @@ const AttendanceRecordsTable = ({
             const currentStatus = record.status || "present";
             return (
               <TableRow key={index}>
-                <TableCell>{record.studentId}</TableCell>
+                {/* Removed studentId cell */}
                 <TableCell>{userLookup[record.studentId] || "Loading..."}</TableCell>
                 <TableCell>{recordDate.toLocaleDateString()}</TableCell>
                 <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
