@@ -69,16 +69,16 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   };
 
   // Util: Get combined attendance list for session (present + absent)
-  const getAllRecordsForSession = (session: ClassSession) => {
+  const getAllRecordsForSession = (session: ClassSession): AttendanceRecord[] => {
     // Map student ID to record, including explicit 'absent' if none found
     return classData.studentIds.map((studentId) => {
       const record = session.attendanceRecords.find(r => r.studentId === studentId);
       if (record) return record;
-      // Create a placeholder absent record if none exists
+      // Explicitly type as AttendanceRecord, status as "absent"
       return {
         studentId,
         timestamp: session.startTime, // use session start as created time
-        status: "absent"
+        status: "absent" as const
       };
     });
   };
