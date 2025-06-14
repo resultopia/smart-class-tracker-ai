@@ -7,7 +7,7 @@ interface Props {
   filteredRecords: AttendanceRecord[];
   selectedSession: ClassSession | null;
   toggleAttendanceStatus: (studentId: string, currentStatus: "present" | "absent") => void;
-  userLookup: Record<string, string>;
+  userLookup: Record<string, { name: string; userId: string }>;
 }
 
 const AttendanceRecordsTable = ({
@@ -34,16 +34,14 @@ const AttendanceRecordsTable = ({
             const recordDate = new Date(record.timestamp);
             const currentStatus = record.status || "present";
             const isPresent = currentStatus === "present";
-            // new: attempt to extract userId from lookup, fallback to empty string.
-            // If userLookup contains mapping: { [id: string]: name }
-            // We do not have userId, but at least we always have record.studentId.
+            const studentInfo = userLookup[record.studentId];
             return (
               <TableRow key={index}>
-                {/* Removed studentId cell */}
+                {/* Show name + username in brackets */}
                 <TableCell>
-                  {userLookup[record.studentId] || "Loading..."}
+                  {studentInfo?.name || "Loading..."}
                   <span className="text-muted-foreground text-xs ml-1">
-                    ({record.studentId})
+                    ({studentInfo?.userId || record.studentId})
                   </span>
                 </TableCell>
                 <TableCell>{recordDate.toLocaleDateString()}</TableCell>

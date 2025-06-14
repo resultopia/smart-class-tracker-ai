@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -10,7 +11,8 @@ export function useAttendanceHistory(classData: Class) {
   const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
   const [dateSessions, setDateSessions] = useState<ClassSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
-  const [userLookup, setUserLookup] = useState<Record<string, string>>({});
+  // userLookup now maps profile uuid -> { name, userId }
+  const [userLookup, setUserLookup] = useState<Record<string, { name: string, userId: string }>>({});
   const { toast } = useToast();
 
   // Load attendance and sessions
@@ -81,14 +83,17 @@ export function useAttendanceHistory(classData: Class) {
     const fetchUserNames = async () => {
       const ids = classData.studentIds;
       if (!ids.length) return;
-      // Fetch profiles, but map UUIDs to names (id field, not user_id)
+      // Fetch profiles, but map UUIDs to names and user_id
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id,name")
+        .select("id,name,user_id")
         .in("id", ids);
       if (profiles) {
         const lookup = Object.fromEntries(
-          profiles.map((p: { id: string, name: string }) => [p.id, p.name])
+          profiles.map((p: { id: string, name: string, user_id: string }) => [
+            p.id,
+            { name: p.name, userId: p.user_id }
+          ])
         );
         setUserLookup(lookup);
       }
@@ -243,3 +248,4 @@ export function useAttendanceHistory(classData: Class) {
     classData
   };
 }
+
