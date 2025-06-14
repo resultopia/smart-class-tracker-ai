@@ -1,85 +1,44 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { getUserById } from "@/lib/data";
-import { AttendanceRecord, ClassSession } from "@/lib/types";
-import { useEffect, useState } from "react";
+
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import StudentAttendanceRow, { StudentAttendanceStatus } from "./StudentAttendanceRow";
 
 interface AttendanceTableProps {
-  filteredRecords: AttendanceRecord[];
-  selectedSession: ClassSession | null;
-  toggleAttendanceStatus: (studentId: string, currentStatus: "present" | "absent") => void;
+  studentsStatus: StudentAttendanceStatus[];
+  onToggleAttendance: (uuid: string, currentStatus: "present" | "absent") => void;
 }
 
-const AttendanceTable = ({
-  filteredRecords,
-  selectedSession,
-  toggleAttendanceStatus,
-}: AttendanceTableProps) => {
-  // Map userId to name
-  const [userNames, setUserNames] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const fetchNames = async () => {
-      const names: Record<string, string> = {};
-      for (const record of filteredRecords) {
-        const user = await getUserById(record.studentId);
-        names[record.studentId] = user?.name || "Unknown";
-      }
-      setUserNames(names);
-    };
-    fetchNames();
-  }, [filteredRecords]);
-
-  return (
-    <div className="border rounded-md">
-      <Table>
-        <TableHeader>
+const AttendanceTable = ({ studentsStatus, onToggleAttendance }: AttendanceTableProps) => (
+  <div className="border rounded-md">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Student UUID</TableHead>
+          <TableHead>Username</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {studentsStatus.length === 0 ? (
           <TableRow>
-            <TableHead>Student ID</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Time</TableHead>
-            <TableHead>Status</TableHead>
-            {selectedSession && <TableHead>Actions</TableHead>}
+            <TableCell colSpan={5} className="text-center py-4">
+              No students in this class.
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredRecords.map((record, index) => {
-            const recordDate = new Date(record.timestamp);
-            const currentStatus = record.status || "present";
-            return (
-              <TableRow key={index}>
-                <TableCell>{record.studentId}</TableCell>
-                <TableCell>{userNames[record.studentId] || "Loading..."}</TableCell>
-                <TableCell>{recordDate.toLocaleDateString()}</TableCell>
-                <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
-                <TableCell>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    currentStatus === "present" 
-                      ? "bg-green-100 text-green-800" 
-                      : "bg-red-100 text-red-800"
-                  }`}>
-                    {currentStatus}
-                  </span>
-                </TableCell>
-                {selectedSession && (
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleAttendanceStatus(record.studentId, currentStatus)}
-                    >
-                      Mark {currentStatus === "present" ? "Absent" : "Present"}
-                    </Button>
-                  </TableCell>
-                )}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
+        ) : (
+          studentsStatus.map((student) => (
+            <StudentAttendanceRow
+              key={student.uuid}
+              student={student}
+              onToggleAttendance={onToggleAttendance}
+            />
+          ))
+        )}
+      </TableBody>
+    </Table>
+  </div>
+);
 
 export default AttendanceTable;
+
