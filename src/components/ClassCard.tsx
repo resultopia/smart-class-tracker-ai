@@ -13,6 +13,7 @@ import AttendanceDashboard from "./AttendanceDashboard";
 import AttendanceHistory from "./AttendanceHistory";
 import CSVAttendanceUpload from "./CSVAttendanceUpload";
 import { Class } from "@/lib/types";
+import EditParticipantsDialog from "./EditParticipantsDialog";
 
 interface ClassCardProps {
   classData: Class;
@@ -25,6 +26,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const [showAttendanceDashboard, setShowAttendanceDashboard] = useState(false);
   const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
   const [showCSVUploadDialog, setShowCSVUploadDialog] = useState(false);
+  const [showEditParticipants, setShowEditParticipants] = useState(false);
   const { toast } = useToast();
 
   const handleToggleStatus = () => {
@@ -225,6 +227,16 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           </Button>
 
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowEditParticipants(true)}
+            className="flex-1 min-w-[120px] flex-nowrap overflow-hidden text-ellipsis whitespace-nowrap justify-start px-3"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Edit Participants
+          </Button>
+
+          <Button
             variant="destructive"
             size="sm"
             onClick={handleDelete}
@@ -277,6 +289,20 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           <AttendanceHistory classData={classData} />
         </DialogContent>
       </Dialog>
+
+      {/* Edit Participants Dialog */}
+      <EditParticipantsDialog
+        open={showEditParticipants}
+        onOpenChange={setShowEditParticipants}
+        classData={classData}
+        onStudentsUpdated={ids => {
+          // update class participant IDs (use service)
+          import("@/lib/classService").then(mod => {
+            mod.updateClassParticipants(classData.id, teacherId, ids);
+            onStatusChange();
+          });
+        }}
+      />
     </>
   );
 };

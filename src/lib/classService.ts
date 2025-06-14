@@ -1,4 +1,3 @@
-
 import { toast } from "@/components/ui/use-toast";
 import { Class, ClassSession } from './types';
 import { initializeData, saveClasses } from './storage';
@@ -224,4 +223,22 @@ export const getClassSessionsForDate = (classId: string, date: Date) => {
 // Update classes reference for storage event listener
 export const updateClassesReference = (newClasses: Class[]) => {
   classes = newClasses;
+};
+
+// NEW: Update student list for a class (add/remove any students)
+export const updateClassParticipants = (classId: string, teacherId: string, studentIds: string[]) => {
+  // Refresh data from localStorage before modification
+  const refreshedData = initializeData();
+  let { classes } = refreshedData;
+  
+  const classToUpdate = classes.find((c) => c.id === classId);
+  if (!classToUpdate || classToUpdate.teacherId !== teacherId) {
+    return false;
+  }
+  // Update studentIds (don't touch isActive or attendance)
+  classes = classes.map((c) =>
+    c.id === classId ? { ...c, studentIds: [...studentIds] } : c
+  );
+  saveClasses(classes);
+  return true;
 };
