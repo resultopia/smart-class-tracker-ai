@@ -64,6 +64,12 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
 
   const toggleAttendance = async (uuid: string, currentStatus: "present" | "absent") => {
     const newStatus = currentStatus === "present" ? "absent" : "present";
+    console.log("[toggleAttendance] called with:", {
+      classId: classData.id,
+      uuid,
+      currentStatus,
+      newStatus
+    });
     const success = await markAttendance(classData.id, uuid, newStatus);
 
     if (success) {
@@ -73,6 +79,11 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
         description: `Student marked as ${newStatus}.`
       });
     } else {
+      console.error("[toggleAttendance] Failed markAttendance:", {
+        classId: classData.id,
+        uuid,
+        newStatus
+      });
       toast({
         title: "Error",
         description: "Failed to update attendance.",
@@ -154,5 +165,4 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
     </div>
   );
 };
-
 export default AttendanceDashboard;

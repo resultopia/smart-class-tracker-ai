@@ -9,11 +9,15 @@ let { classes } = initializeData();
 export const markAttendance = (classId: string, studentId: string, status: "present" | "absent" = "present") => {
   // Refresh data from localStorage before modification
   const refreshedData = initializeData();
-  classes = refreshedData.classes;
+  let { classes } = refreshedData;
   
   const classObj = classes.find((c) => c.id === classId);
-  
-  if (!classObj || !classObj.studentIds.includes(studentId)) {
+  if (!classObj) {
+    console.error("[markAttendance] No class found for classId:", classId);
+    return false;
+  }
+  if (!classObj.studentIds.includes(studentId)) {
+    console.error("[markAttendance] studentId not found in class.studentIds array:", { classStudentIds: classObj.studentIds, studentId });
     return false;
   }
   
