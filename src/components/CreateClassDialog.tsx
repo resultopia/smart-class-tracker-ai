@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,11 +87,11 @@ const CreateClassDialog = ({
                           : 'border hover:bg-muted cursor-pointer'}
                       `}
                       onClick={() => {
-                        setSelectedStudents(prevSelected => 
-                          prevSelected.includes(student.userId)
-                            ? prevSelected.filter(id => id !== student.userId)
-                            : [...prevSelected, student.userId]
-                        );
+                        if (selectedStudents.includes(student.userId)) {
+                          setSelectedStudents(selectedStudents.filter(id => id !== student.userId));
+                        } else {
+                          setSelectedStudents([...selectedStudents, student.userId]);
+                        }
                       }}
                     >
                       <div className={`
