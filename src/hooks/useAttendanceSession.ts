@@ -68,18 +68,18 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
   const lastSessionIdRef = useRef<string | null>(null);
   const prevActiveRef = useRef<boolean>(classData.isActive);
 
-  // Load/update state for the current/latest session
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
+
     if (classData.isActive) {
-      // ONLY fetch session. DO NOT create new.
-      let sessionId: string | null = lastSessionIdRef.current;
+      // Always fetch NEW session for active class
+      let sessionId = lastSessionIdRef.current;
       if (!sessionId) {
+        // Get latest open session; will always exist as we explicitly create it below
         sessionId = await getLatestSessionId(classData.id);
-        if (sessionId) {
-          lastSessionIdRef.current = sessionId;
-        }
+        if (sessionId) lastSessionIdRef.current = sessionId;
       }
+
       if (sessionId) {
         const { data: records, error } = await supabase
           .from("attendance_records")
@@ -139,7 +139,7 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
         );
       }
     } else {
-      // Not active: clear session
+      // Class is inactive: clear ref, show empty/null
       lastSessionIdRef.current = null;
       const studentIds = classData.studentIds || [];
       let profileData: Record<string, { user_id: string; name: string }> = {};
@@ -166,32 +166,29 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
     setLoading(false);
   }, [classData]);
 
-  // Effect for session transitions and resets
   useEffect(() => {
     const wasActive = prevActiveRef.current;
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Class just activated: ensure a Supabase session is created!
+      // Class activated: ALWAYS create a brand new session
       (async () => {
-        let liveSessionId: string | null = await getLatestSessionId(classData.id);
-        if (!liveSessionId) {
-          const newSession = await createNewClassSession(classData.id);
-          if (newSession?.id) {
-            liveSessionId = newSession.id;
-          }
-        }
-        lastSessionIdRef.current = liveSessionId || null;
+        const newSession = await createNewClassSession(classData.id);
+        lastSessionIdRef.current = newSession?.id || null;
+        // After creating session, load (empty) attendance
         loadAttendanceData();
       })();
     } else if (!isActive && wasActive) {
-      // End latest open session (even if nobody marked)
-      endLatestOpenSession(classData.id).then(() => {
+      // Class stopped: End session and reset dashboard state
+      (async () => {
+        await endLatestOpenSession(classData.id);
         lastSessionIdRef.current = null;
+        setStudentsStatus([]); // clear local dashboard state
         loadAttendanceData();
-      });
+      })();
     } else {
+      // No state change, just refresh
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
