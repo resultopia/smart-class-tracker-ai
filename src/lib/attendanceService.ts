@@ -199,17 +199,32 @@ export const verifyFaceIdentity = async (imageBase64: string, userId: string): P
     const protocol    = window.location.protocol;  // e.g. "http:"
     const hostname    = window.location.hostname;  // e.g. "127.0.0.1"
     const backendUrl  = `${protocol}//${hostname}:${backendPort}`;
-    const response = await fetch(`${backendUrl}/predict`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        image_base64: imageBase64
-      })
-    });
-    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await fetch(`${backendUrl}/predict`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          image_base64: imageBase64
+        }),
+        signal: controller.signal
+      });
+    } catch (fetchError: any) {
+      if (fetchError.name === "AbortError") {
+        console.error('Face verification API timed out (5s exceeded)');
+        return false;
+      }
+      throw fetchError;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
     if (!response.ok) {
       console.error('Face verification API error:', response.statusText);
       return false;
