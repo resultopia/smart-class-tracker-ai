@@ -92,6 +92,13 @@ export function useAttendanceSession(
     initializeAllAbsent,
   ]);
 
+  // --- NEW: Always fetch data on first mount and when classData.id changes ---
+  useEffect(() => {
+    loadAttendanceData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classData.id]);
+  // --------------------------------------------------------------------------
+
   // EFFECT: Detect change of sessionId (isActive) and reload data if needed
   useEffect(() => {
     if (classData.isActive !== prevSessionIdRef.current) {
