@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,20 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
       <Card className={classData.isActive ? "border-primary" : ""}>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg font-medium flex items-center justify-between">
-            <span>{classData.name}</span>
+            <div className="flex items-center gap-2">
+              <span>{classData.name}</span>
+              {/* Delete button beside class name */}
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={handleDelete}
+                disabled={classData.isActive}
+                className="ml-2 w-8 h-8"
+                title="Delete Class"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
             {classData.isOnlineMode && (
               <div className="flex items-center text-blue-600">
                 <Wifi className="h-4 w-4 mr-1" />
@@ -226,16 +240,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             History
           </Button>
 
-          {/* Removed Edit Participants button from here */}
-
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
-            disabled={classData.isActive}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {/* Removed Delete button from here */}
         </CardFooter>
       </Card>
 
@@ -251,9 +256,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           />
         </DialogContent>
       </Dialog>
-
-      {/* Attendance Records Dialog */}
-      
 
       {/* Attendance Dashboard Dialog */}
       <Dialog open={showAttendanceDashboard} onOpenChange={setShowAttendanceDashboard}>
