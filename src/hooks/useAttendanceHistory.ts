@@ -95,10 +95,10 @@ export function useAttendanceHistory(classData: Class) {
     fetchUserNames();
   }, [classData.studentIds]);
 
-  // Get attendance records for session
-  const getAllRecordsForSession = (session: ClassSession): AttendanceRecord[] => {
+  // Helper to assemble records for a session in class roster order
+  const getAllRecordsForSession = (session: ClassSession, recordsArray: AttendanceRecord[] = allRecords): AttendanceRecord[] => {
     return classData.studentIds.map((studentId) => {
-      const record = allRecords.find(
+      const record = recordsArray.find(
         r => r.sessionId === session.sessionId && r.studentId === studentId
       );
       if (record) return record;
@@ -137,7 +137,6 @@ export function useAttendanceHistory(classData: Class) {
     setDateSessions(dateSessions.filter((s) => s.sessionId !== sessionId));
   };
 
-  // Fix: Refetch records after toggling attendance!
   const toggleAttendanceStatus = async (studentId: string, currentStatus: "present" | "absent") => {
     if (!selectedSession) return;
     const newStatus = currentStatus === "present" ? "absent" : "present";
@@ -177,9 +176,9 @@ export function useAttendanceHistory(classData: Class) {
     })) || [];
     setAllRecords(updatedAttendance);
 
-    // Update filteredRecords for the current session:
+    // Ensure stable order: get in classData.studentIds order
     setFilteredRecords(
-      updatedAttendance.filter(r => r.sessionId === selectedSession.sessionId)
+      selectedSession ? getAllRecordsForSession(selectedSession, updatedAttendance) : []
     );
   };
 
