@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -206,15 +205,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             </Button>
           )}
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAttendanceDialog(true)}
-            className="flex-1 min-w-[100px]"
-          >
-            <ClipboardList className="h-4 w-4 mr-2" />
-            Records
-          </Button>
           
           <Button
             variant="outline"
@@ -263,14 +253,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
       </Dialog>
 
       {/* Attendance Records Dialog */}
-      <Dialog open={showAttendanceDialog} onOpenChange={setShowAttendanceDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Attendance Records - {classData.name}</DialogTitle>
-          </DialogHeader>
-          <AttendanceList attendanceRecords={classData.attendanceRecords} />
-        </DialogContent>
-      </Dialog>
+      
 
       {/* Attendance Dashboard Dialog */}
       <Dialog open={showAttendanceDashboard} onOpenChange={setShowAttendanceDashboard}>
