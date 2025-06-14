@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar, Lock, User } from "lucide-react";
 import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
 import { useAuth } from "@/lib/auth-context";
@@ -13,6 +15,7 @@ import { authenticateUser } from "@/lib/userService";
 const Login = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("student"); // Add role state
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -42,11 +45,19 @@ const Login = () => {
     const user = await authenticateUser(userId, password);
 
     if (user) {
+      // Accept any user matching credentials, but check role for admin
+      if (user.role !== role) {
+        setError(`That user is a ${user.role}, not a ${role}.`);
+        setIsLoading(false);
+        return;
+      }
       login(user);
       if (rememberMe) {
         localStorage.setItem("rememberedUserId", userId);
+        localStorage.setItem("rememberedRole", role);
       } else {
         localStorage.removeItem("rememberedUserId");
+        localStorage.removeItem("rememberedRole");
       }
       setIsLoading(false);
       // Redirect handled by useEffect above
@@ -58,7 +69,9 @@ const Login = () => {
 
   useEffect(() => {
     const remembered = localStorage.getItem("rememberedUserId");
+    const rememberedRole = localStorage.getItem("rememberedRole");
     if (remembered) setUserId(remembered);
+    if (rememberedRole) setRole(rememberedRole);
   }, []);
 
   return (
@@ -118,6 +131,32 @@ const Login = () => {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Sign in as (Role Selector) */}
+              <div>
+                <Label className="text-sm font-semibold text-gray-700 mb-1 block">
+                  Sign in as
+                </Label>
+                <RadioGroup
+                  value={role}
+                  onValueChange={setRole}
+                  className="flex space-x-4"
+                  aria-label="Sign in as"
+                >
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="student" id="student" />
+                    <Label htmlFor="student" className="cursor-pointer text-gray-700">Student</Label>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="teacher" id="teacher" />
+                    <Label htmlFor="teacher" className="cursor-pointer text-gray-700">Teacher</Label>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="admin" id="admin" />
+                    <Label htmlFor="admin" className="cursor-pointer text-gray-700">Admin</Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               {/* Remember Me */}
