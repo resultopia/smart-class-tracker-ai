@@ -28,28 +28,38 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classData]);
 
+  // Loads attendance and merges with class students: ensures all students in class appear
   const loadAttendanceData = async () => {
-    const statusData = await getStudentsAttendanceStatus(classData.id);
-    const uuids = statusData.map(s => s.userId);
+    // 1. Get today's attendance status for class
+    const attendanceStatusArr = await getStudentsAttendanceStatus(classData.id);
+    // 2. Fetch all student profiles in the class
+    const studentUuids = classData.studentIds;
     let profilesLookup: Record<string, { user_id: string; name: string }> = {};
-    if (uuids.length > 0) {
+    if (studentUuids.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, user_id, name")
-        .in("id", uuids);
+        .in("id", studentUuids);
       if (profiles && Array.isArray(profiles)) {
         profiles.forEach(row => {
           profilesLookup[row.id] = { user_id: row.user_id, name: row.name };
         });
       }
     }
-    const all: StudentAttendanceStatus[] = statusData.map(s => ({
-      uuid: s.userId,
-      userId: profilesLookup[s.userId]?.user_id || s.userId,
-      name: profilesLookup[s.userId]?.name || "",
-      status: s.status
+    // 3. Map each student in class to their attendance status (default: absent)
+    const statusMap: Record<string, "present" | "absent"> = {};
+    attendanceStatusArr.forEach(s => {
+      statusMap[s.userId] = s.status;
+    });
+
+    const allStudents: StudentAttendanceStatus[] = studentUuids.map(studentUuid => ({
+      uuid: studentUuid,
+      userId: profilesLookup[studentUuid]?.user_id || studentUuid,
+      name: profilesLookup[studentUuid]?.name || "",
+      status: statusMap[studentUuid] || "absent"
     }));
-    setStudentsStatus(all);
+
+    setStudentsStatus(allStudents);
   };
 
   const toggleAttendance = async (uuid: string, currentStatus: "present" | "absent") => {
