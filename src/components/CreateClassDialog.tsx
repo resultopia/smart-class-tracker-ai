@@ -44,12 +44,6 @@ const CreateClassDialog = ({
 }: CreateClassDialogProps) => {
   const handleCSVStudentsUploaded = (ids: string[]) => setCsvStudents(ids);
 
-  // For debugging: log students loaded in manual select tab
-  if (open) {
-    // Only log when dialog is open to reduce spam
-    console.log("[CreateClassDialog] Students passed in:", students);
-  }
-
   // Map student objects to {id, name} using user_id (not UUID filtering)
   const mappedStudents = Array.isArray(students)
     ? students
