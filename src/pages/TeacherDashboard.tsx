@@ -134,7 +134,7 @@ const TeacherDashboard = () => {
       .insert([
         {
           name: className,
-          teacher_id: currentUser.id,
+          teacher_id: currentUser.userId, // <-- FIXED: use userId instead of id
         },
       ])
       .select()
