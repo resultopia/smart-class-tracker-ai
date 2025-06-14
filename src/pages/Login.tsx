@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,7 @@ const Login = () => {
     setError(null);
     setIsLoading(true);
 
-    const user = authenticateUser(userId, password);
+    const user = await authenticateUser(userId, password); // async!
 
     if (user) {
       login(user);

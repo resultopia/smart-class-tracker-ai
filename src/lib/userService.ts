@@ -1,61 +1,88 @@
 
 import { toast } from "@/components/ui/use-toast";
 import { User, UserRole } from './types';
-import { initializeData, saveUsers, saveClasses } from './storage';
+import { supabase } from "@/integrations/supabase/client";
 
-// Initialize state
-let { users, classes } = initializeData();
-
-// Get all users
-export const getAllUsers = () => {
-  // Refresh data from localStorage
-  const refreshedData = initializeData();
-  users = refreshedData.users;
-  return [...users];
+// Get all users from Supabase profiles table
+export const getAllUsers = async (): Promise<User[]> => {
+  const { data, error } = await supabase.from("profiles").select("*");
+  if (error) {
+    toast({
+      title: "Error Loading Users",
+      description: error.message,
+      variant: "destructive",
+    });
+    return [];
+  }
+  return data.map((row: any) => ({
+    userId: row.user_id,
+    name: row.name,
+    password: "lol", // Only used for local verification
+    role: row.role as UserRole,
+    phoneNumber: row.phone_number,
+  }));
 };
 
 // Get users by role
-export const getUsersByRole = (role: UserRole) => {
-  // Refresh data from localStorage
-  const refreshedData = initializeData();
-  users = refreshedData.users;
-  return users.filter((user) => user.role === role);
+export const getUsersByRole = async (role: UserRole) => {
+  const { data, error } = await supabase.from("profiles").select("*").eq("role", role);
+  if (error) {
+    toast({
+      title: "Error Loading Users",
+      description: error.message,
+      variant: "destructive",
+    });
+    return [];
+  }
+  return data.map((row: any) => ({
+    userId: row.user_id,
+    name: row.name,
+    password: "lol",
+    role: row.role as UserRole,
+    phoneNumber: row.phone_number,
+  }));
 };
 
 // Get user by ID
-export const getUserById = (userId: string) => {
-  // Refresh data from localStorage
-  const refreshedData = initializeData();
-  users = refreshedData.users;
-  return users.find((user) => user.userId === userId);
-};
-
-// Authenticate user
-export const authenticateUser = (userId: string, password: string) => {
-  // Refresh data from localStorage before authentication
-  const refreshedData = initializeData();
-  users = refreshedData.users;
-  
-  const user = users.find((user) => user.userId === userId);
-  
-  if (!user) {
+export const getUserById = async (userId: string) => {
+  const { data, error } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+  if (error) {
+    toast({
+      title: "Error Finding User",
+      description: error.message,
+      variant: "destructive",
+    });
     return null;
   }
-  
-  if (user.password === password) {
-    return user;
-  }
-  
-  return null;
+  if (!data) return null;
+  return {
+    userId: data.user_id,
+    name: data.name,
+    password: "lol",
+    role: data.role as UserRole,
+    phoneNumber: data.phone_number,
+  };
 };
 
-// Add new user
-export const addUser = (newUser: Omit<User, "password"> & { password: string }) => {
-  // Refresh data from localStorage before modification
-  const refreshedData = initializeData();
-  users = refreshedData.users;
-  
-  if (users.some((user) => user.userId === newUser.userId)) {
+// Authenticate user against Supabase-profiles username and fixed password "lol"
+export const authenticateUser = async (userId: string, password: string): Promise<User | null> => {
+  if (password !== "lol") return null;
+  const { data, error } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+  if (error || !data) return null;
+  return {
+    userId: data.user_id,
+    name: data.name,
+    password: "lol",
+    role: data.role as UserRole,
+    phoneNumber: data.phone_number,
+  };
+};
+
+// Add new user to Supabase
+export const addUser = async (newUser: Omit<User, "password"> & { password: string }) => {
+  // Check for duplicates
+  const existing = await getUserById(newUser.userId);
+  if (existing) {
     toast({
       title: "Error",
       description: `User ID '${newUser.userId}' already exists.`,
@@ -63,68 +90,36 @@ export const addUser = (newUser: Omit<User, "password"> & { password: string }) 
     });
     return false;
   }
-  
-  users.push({
-    userId: newUser.userId,
+  const { error } = await supabase.from("profiles").insert({
+    user_id: newUser.userId,
     name: newUser.name,
-    password: newUser.password,
     role: newUser.role,
+    phone_number: (newUser as any).phoneNumber || null,
   });
-  
-  // Save to localStorage
-  saveUsers(users);
-  
+  if (error) {
+    toast({
+      title: "Error Adding User",
+      description: error.message,
+      variant: "destructive",
+    });
+    return false;
+  }
   return true;
 };
 
 // Delete user
-export const deleteUser = (userId: string) => {
-  // Refresh data from localStorage before modification
-  const refreshedData = initializeData();
-  users = refreshedData.users;
-  classes = refreshedData.classes;
-  
-  // First check if user exists
-  const user = users.find((user) => user.userId === userId);
-  if (!user) {
+export const deleteUser = async (userId: string) => {
+  const { error } = await supabase.from("profiles").delete().eq("user_id", userId);
+  if (error) {
     toast({
-      title: "Error",
-      description: `User ID '${userId}' does not exist.`,
+      title: "Error Deleting User",
+      description: error.message,
       variant: "destructive",
     });
     return false;
   }
-  
-  // If user is a teacher, check if they're associated with any classes
-  if (user.role === "teacher" && classes.some((c) => c.teacherId === userId)) {
-    toast({
-      title: "Error",
-      description: `Cannot delete teacher '${userId}' as they are associated with classes.`,
-      variant: "destructive",
-    });
-    return false;
-  }
-  
-  // If user is a student, remove them from any classes
-  if (user.role === "student") {
-    classes = classes.map((c) => ({
-      ...c,
-      studentIds: c.studentIds.filter((id) => id !== userId),
-    }));
-    // Save updated classes
-    saveClasses(classes);
-  }
-  
-  // Remove the user
-  users = users.filter((user) => user.userId !== userId);
-  
-  // Save to localStorage
-  saveUsers(users);
-  
   return true;
 };
 
-// Update users reference for storage event listener
-export const updateUsersReference = (newUsers: User[]) => {
-  users = newUsers;
-};
+// Dummy update users reference
+export const updateUsersReference = (_newUsers: User[]) => {};

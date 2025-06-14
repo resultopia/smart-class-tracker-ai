@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { addUser, deleteUser, UserRole, getAllUsers, User } from "@/lib/data";
+import { addUser, deleteUser, UserRole, getAllUsers, User } from "@/lib/userService";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -47,11 +46,13 @@ const Register = () => {
       return;
     }
     
-    // Load users when component mounts and admin is verified
-    setUsers(getAllUsers());
+    // Load users from Supabase when component mounts
+    (async () => {
+      setUsers(await getAllUsers());
+    })();
   }, [currentUser, navigate, toast]);
 
-  // Filter users by selected role
+  // Filter users by selected role (move this to client side)
   const filteredUsers = users.filter(user => user.role === role);
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +84,7 @@ const Register = () => {
     setUploadedPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUserId.trim() || !newName.trim()) {
       toast({
         title: "Error",
@@ -110,7 +111,7 @@ const Register = () => {
       userData.photos = uploadedPhotos;
     }
 
-    const success = addUser(userData);
+    const success = await addUser(userData);
     
     if (success) {
       toast({
@@ -119,7 +120,7 @@ const Register = () => {
       });
       
       // Refresh users list
-      setUsers(getAllUsers());
+      setUsers(await getAllUsers());
       
       // Reset form and close dialog
       resetForm();
@@ -127,8 +128,8 @@ const Register = () => {
     }
   };
 
-  const handleDeleteUser = (userId: string, userName: string) => {
-    const success = deleteUser(userId);
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    const success = await deleteUser(userId);
     
     if (success) {
       toast({
@@ -137,7 +138,7 @@ const Register = () => {
       });
       
       // Refresh users list
-      setUsers(getAllUsers());
+      setUsers(await getAllUsers());
     }
   };
 

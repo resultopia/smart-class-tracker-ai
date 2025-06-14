@@ -1,11 +1,10 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Upload, FileText, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { addUser } from "@/lib/data";
+import { addUser } from "@/lib/userService";
 
 const CSVTeacherUpload = ({ onTeachersAdded }: { onTeachersAdded: () => void }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -29,7 +28,7 @@ const CSVTeacherUpload = ({ onTeachersAdded }: { onTeachersAdded: () => void }) 
         const name = columns[1]?.trim().replace(/"/g, ''); // Remove quotes
         
         if (username && name) {
-          const success = addUser({
+          const success = await addUser({
             userId: username,
             name: name,
             password: "lol",
