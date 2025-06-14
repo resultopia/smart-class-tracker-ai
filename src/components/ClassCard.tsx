@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -166,8 +165,8 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           <Button 
             variant={classData.isActive ? "outline" : "default"}
             size="sm"
+            className="flex-1 min-w-[120px] flex-nowrap overflow-hidden text-ellipsis whitespace-nowrap justify-start px-3"
             onClick={handleToggleStatus}
-            className="flex-1 min-w-[100px] justify-start px-3"
           >
             {classData.isActive ? (
               <>
