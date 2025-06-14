@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { StudentAttendanceStatus } from "@/components/StudentAttendanceRow";
@@ -173,7 +172,20 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
-    if (!isActive && wasActive) {
+    if (isActive && !wasActive) {
+      // Class just activated: ensure a Supabase session is created!
+      (async () => {
+        let liveSessionId: string | null = await getLatestSessionId(classData.id);
+        if (!liveSessionId) {
+          const newSession = await createNewClassSession(classData.id);
+          if (newSession?.id) {
+            liveSessionId = newSession.id;
+          }
+        }
+        lastSessionIdRef.current = liveSessionId || null;
+        loadAttendanceData();
+      })();
+    } else if (!isActive && wasActive) {
       // End latest open session (even if nobody marked)
       endLatestOpenSession(classData.id).then(() => {
         lastSessionIdRef.current = null;
