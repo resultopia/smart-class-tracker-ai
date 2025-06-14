@@ -10,7 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { 
-  getStudentsAttendanceStatus 
+  getStudentsAttendanceStatus,
+  markAttendance,
+  resetTodayAttendance
 } from "@/lib/data";
 import { Check, X, RefreshCcw, FileDown } from "lucide-react";
 import { Class } from "@/lib/types";
