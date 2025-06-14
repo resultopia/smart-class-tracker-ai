@@ -7,60 +7,58 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/components/ui/use-toast";
-import { authenticateUser, UserRole } from "@/lib/data";
-import { useAuth } from "@/lib/auth-context";
-import { Shield, User, Lock, Calendar } from "lucide-react";
+import { Calendar, Lock, Shield, User } from "lucide-react";
 import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
+import { useSupabaseAuth } from "@/lib/supabase-auth";
+
+// This preserves almost all your original UI code, swapping in Supabase for auth
 
 const Login = () => {
-  const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("student");
+  const [role, setRole] = useState("student");
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [name, setName] = useState(""); // for registration
+  const [error, setError] = useState<string | null>(null);
+
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { login } = useAuth();
+  const { signIn, signUp, loading, user } = useSupabaseAuth();
+
+  // Authenticated users are redirected
+  React.useEffect(() => {
+    if (user) {
+      navigate(role === "teacher" ? "/teacher-dashboard" : "/student-attendance");
+    }
+  }, [user, navigate, role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
-    
-    // Simulate loading for better UX
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const user = authenticateUser(userId, password);
-    
-    if (!user) {
-      toast({
-        title: "Authentication Failed",
-        description: "Invalid user ID or password.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    if (user.role !== role) {
-      toast({
-        title: "Role Mismatch",
-        description: `You are not registered as a ${role}.`,
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    login(user);
-    
-    if (role === "teacher") {
-      navigate("/teacher-dashboard");
+
+    if (isRegister) {
+      // Registration flow
+      const { error } = await signUp(email, password, name, role);
+      if (error) {
+        setError(error.message ?? "Registration failed");
+      } else {
+        setIsRegister(false);
+      }
     } else {
-      navigate("/student-attendance");
+      // Login flow
+      const { error } = await signIn(email, password);
+      if (error) {
+        if (error.message?.includes("Email not confirmed")) {
+          setError("Please check your email and confirm your signup before logging in.");
+        } else {
+          setError(error.message ?? "Login failed");
+        }
+      }
+      // Navigate is handled by useEffect above
     }
-    
     setIsLoading(false);
   };
 
@@ -80,10 +78,12 @@ const Login = () => {
         <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-2xl font-bold text-gray-900">
-              Welcome Back
+              {isRegister ? "Register" : "Welcome Back"}
             </CardTitle>
             <p className="text-gray-600 text-sm mt-2">
-              Please sign in to your account
+              {isRegister
+                ? "Create your account with your role"
+                : "Please sign in to your account"}
             </p>
           </CardHeader>
           
@@ -91,10 +91,12 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Role Selection */}
               <div className="space-y-3">
-                <Label className="text-sm font-semibold text-gray-700">Sign in as</Label>
+                <Label className="text-sm font-semibold text-gray-700">
+                  Sign {isRegister ? "up" : "in"} as
+                </Label>
                 <RadioGroup 
                   value={role} 
-                  onValueChange={(value) => setRole(value as UserRole)}
+                  onValueChange={(value) => setRole(value)}
                   className="flex space-x-6"
                 >
                   <div className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
@@ -108,16 +110,30 @@ const Login = () => {
                 </RadioGroup>
               </div>
               
-              {/* User ID Input */}
+              {isRegister && (
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-semibold text-gray-700">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Email Input */}
               <div className="space-y-2">
-                <Label htmlFor="userId" className="text-sm font-semibold text-gray-700">User ID</Label>
+                <Label htmlFor="email" className="text-sm font-semibold text-gray-700">Email</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input 
-                    id="userId" 
-                    value={userId} 
-                    onChange={(e) => setUserId(e.target.value)} 
-                    placeholder="Enter your user ID" 
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)} 
+                    placeholder="Enter your email" 
                     className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
                     required 
                   />
@@ -142,50 +158,75 @@ const Login = () => {
               </div>
               
               {/* Remember Me */}
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="remember" 
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked === true)}
-                />
-                <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
-                  Remember me
-                </Label>
-              </div>
+              {!isRegister && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="remember" 
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  />
+                  <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
+                    Remember me
+                  </Label>
+                </div>
+              )}
               
-              {/* Login Button */}
+              {/* Error Message */}
+              {error && (
+                <div className="text-red-600 text-sm">{error}</div>
+              )}
+
+              {/* Login/Register Button */}
               <Button 
                 type="submit" 
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-                disabled={isLoading}
+                disabled={isLoading || loading}
               >
-                {isLoading ? (
+                {(isLoading || loading) ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Signing in...</span>
+                    <span>{isRegister ? "Registering..." : "Signing in..."}</span>
                   </div>
                 ) : (
-                  "Sign In"
+                  isRegister ? "Register" : "Sign In"
                 )}
               </Button>
             </form>
             
             {/* Forgot Password Link */}
-            <div className="text-center">
-              <button 
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
+            {!isRegister && (
+              <div className="text-center">
+                <button 
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+            )}
+
+            {/* Toggle Login/Register */}
+            <div className="text-center pt-2">
+              <button
+                className="text-xs text-blue-500 underline w-full text-center transition-colors"
+                type="button"
+                onClick={() => {
+                  setIsRegister(r => !r);
+                  setError(null);
+                }}
               >
-                Forgot your password?
+                {isRegister
+                  ? "Already have an account? Log in"
+                  : "Don't have an account? Register"}
               </button>
             </div>
           </CardContent>
           
           <CardFooter className="flex flex-col space-y-4 pt-4">
             {/* Admin Access */}
-            <Button 
-              variant="outline" 
-              onClick={() => navigate("/admin-login")} 
+            <Button
+              variant="outline"
+              onClick={() => navigate("/admin-login")}
               className="w-full h-11 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 group"
             >
               <Shield className="h-4 w-4 mr-2 group-hover:text-blue-600 transition-colors" />
@@ -209,3 +250,4 @@ const Login = () => {
 };
 
 export default Login;
+
