@@ -17,12 +17,27 @@ export const useTeacherClasses = () => {
   const isUUID = (id: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id);
 
-  const loadClasses = useCallback(async () => {
+  // Helper to find teacher's uuid from currentUser.userId
+  const [teacherUUID, setTeacherUUID] = useState<string | null>(null);
+  useEffect(() => {
     if (!currentUser) return;
+    const fetchTeacherUUID = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, id")
+        .eq("user_id", currentUser.userId)
+        .maybeSingle();
+      setTeacherUUID(data?.id || null);
+    };
+    fetchTeacherUUID();
+  }, [currentUser]);
+
+  const loadClasses = useCallback(async () => {
+    if (!teacherUUID) return;
     const { data: classRows } = await supabase
       .from("classes")
       .select("*")
-      .eq("teacher_id", currentUser.userId);
+      .eq("teacher_id", teacherUUID);
     if (classRows) {
       const classList: Class[] = [];
       for (const cls of classRows) {
@@ -44,7 +59,7 @@ export const useTeacherClasses = () => {
       }
       setClasses(classList);
     }
-  }, [currentUser]);
+  }, [teacherUUID]);
 
   const loadStudents = useCallback(async () => {
     setLoading(true);
@@ -72,10 +87,10 @@ export const useTeacherClasses = () => {
   }, [toast]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!teacherUUID) return;
     loadClasses();
     loadStudents();
-  }, [currentUser, loadClasses, loadStudents]);
+  }, [teacherUUID, loadClasses, loadStudents]);
 
   return {
     classes,

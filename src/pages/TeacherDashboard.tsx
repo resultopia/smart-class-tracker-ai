@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import UserInfo from "@/components/UserInfo";
