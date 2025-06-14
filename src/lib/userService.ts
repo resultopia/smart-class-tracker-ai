@@ -1,7 +1,17 @@
 
 import { toast } from "@/components/ui/use-toast";
-import { User, UserRole } from './types';
 import { supabase } from "@/integrations/supabase/client";
+
+// Local types (exported)
+export type UserRole = "student" | "teacher" | "admin";
+export interface User {
+  userId: string;
+  name: string;
+  password: string;
+  role: UserRole;
+  phoneNumber?: string;
+  photos?: string[];
+}
 
 // Get all users from Supabase profiles table
 export const getAllUsers = async (): Promise<User[]> => {
@@ -14,10 +24,10 @@ export const getAllUsers = async (): Promise<User[]> => {
     });
     return [];
   }
-  return data.map((row: any) => ({
+  return (data || []).map((row: any) => ({
     userId: row.user_id,
     name: row.name,
-    password: "lol", // Only used for local verification
+    password: "lol", // Default/fixed password
     role: row.role as UserRole,
     phoneNumber: row.phone_number,
   }));
@@ -34,7 +44,7 @@ export const getUsersByRole = async (role: UserRole) => {
     });
     return [];
   }
-  return data.map((row: any) => ({
+  return (data || []).map((row: any) => ({
     userId: row.user_id,
     name: row.name,
     password: "lol",
@@ -67,15 +77,8 @@ export const getUserById = async (userId: string) => {
 // Authenticate user against Supabase-profiles username and fixed password "lol"
 export const authenticateUser = async (userId: string, password: string): Promise<User | null> => {
   if (password !== "lol") return null;
-  const { data, error } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
-  if (error || !data) return null;
-  return {
-    userId: data.user_id,
-    name: data.name,
-    password: "lol",
-    role: data.role as UserRole,
-    phoneNumber: data.phone_number,
-  };
+  const user = await getUserById(userId);
+  return user;
 };
 
 // Add new user to Supabase
@@ -90,7 +93,10 @@ export const addUser = async (newUser: Omit<User, "password"> & { password: stri
     });
     return false;
   }
+  // Generate a random UUID for `id` field
+  const id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
   const { error } = await supabase.from("profiles").insert({
+    id,
     user_id: newUser.userId,
     name: newUser.name,
     role: newUser.role,

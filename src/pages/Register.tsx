@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
-import { addUser, deleteUser, UserRole, getAllUsers, User } from "@/lib/userService";
+import { addUser, deleteUser, getAllUsers, User, UserRole } from "@/lib/userService";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -97,32 +97,22 @@ const Register = () => {
     const userData: any = {
       userId: newUserId,
       name: newName,
-      password: "lol", // Hardcoded password as specified
+      password: "lol",
       role,
     };
-
-    // Add phone number for students
     if (role === "student" && newPhoneNumber.trim()) {
       userData.phoneNumber = newPhoneNumber;
     }
-
-    // Add photos only for students if photo upload is enabled
     if (role === "student" && enablePhotoUpload && uploadedPhotos.length > 0) {
       userData.photos = uploadedPhotos;
     }
-
     const success = await addUser(userData);
-    
     if (success) {
       toast({
         title: "Registration Successful",
         description: `New ${role} "${newName}" has been added${uploadedPhotos.length > 0 ? ` with ${uploadedPhotos.length} photos` : ''}.`,
       });
-      
-      // Refresh users list
       setUsers(await getAllUsers());
-      
-      // Reset form and close dialog
       resetForm();
       setIsAddDialogOpen(false);
     }
@@ -130,14 +120,11 @@ const Register = () => {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     const success = await deleteUser(userId);
-    
     if (success) {
       toast({
         title: "User Deleted",
         description: `${userName} (${userId}) has been removed.`,
       });
-      
-      // Refresh users list
       setUsers(await getAllUsers());
     }
   };
@@ -150,8 +137,8 @@ const Register = () => {
     setUploadedPhotos([]);
   };
 
-  const handleCSVUploadComplete = () => {
-    setUsers(getAllUsers());
+  const handleCSVUploadComplete = async () => {
+    setUsers(await getAllUsers());
     setIsCSVUploadOpen(false);
   };
 

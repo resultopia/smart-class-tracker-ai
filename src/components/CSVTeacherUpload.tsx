@@ -26,7 +26,6 @@ const CSVTeacherUpload = ({ onTeachersAdded }: { onTeachersAdded: () => void }) 
         const columns = trimmedLine.split(',');
         const username = columns[0]?.trim().replace(/"/g, ''); // Remove quotes
         const name = columns[1]?.trim().replace(/"/g, ''); // Remove quotes
-        
         if (username && name) {
           const success = await addUser({
             userId: username,
@@ -34,7 +33,6 @@ const CSVTeacherUpload = ({ onTeachersAdded }: { onTeachersAdded: () => void }) 
             password: "lol",
             role: "teacher"
           });
-          
           if (success) {
             validTeachers.push(`${name} (${username})`);
           } else {
@@ -45,10 +43,8 @@ const CSVTeacherUpload = ({ onTeachersAdded }: { onTeachersAdded: () => void }) 
         }
       }
     }
-    
     setProcessedTeachers(validTeachers);
     setInvalidEntries(invalidEntries);
-    
     if (validTeachers.length > 0) {
       onTeachersAdded();
       toast({
@@ -62,7 +58,6 @@ const CSVTeacherUpload = ({ onTeachersAdded }: { onTeachersAdded: () => void }) 
         variant: "destructive"
       });
     }
-    
     setIsProcessing(false);
   };
 

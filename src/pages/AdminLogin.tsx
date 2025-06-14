@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { authenticateUser } from "@/lib/data";
+import { authenticateUser } from "@/lib/userService";
 import { useAuth } from "@/lib/auth-context";
 
 const AdminLogin = () => {
@@ -15,12 +15,13 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const user = authenticateUser(userId, password);
-    
+    setLoading(true);
+    const user = await authenticateUser(userId, password);
+    setLoading(false);
     if (!user) {
       toast({
         title: "Authentication Failed",
@@ -29,7 +30,6 @@ const AdminLogin = () => {
       });
       return;
     }
-    
     if (user.role !== "admin") {
       toast({
         title: "Access Denied",
@@ -38,11 +38,7 @@ const AdminLogin = () => {
       });
       return;
     }
-    
-    // Login the user using auth context
     login(user);
-    
-    // If authenticated as admin, proceed to register page
     navigate("/register");
   };
 
@@ -64,7 +60,6 @@ const AdminLogin = () => {
                 required 
               />
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input 
@@ -76,8 +71,9 @@ const AdminLogin = () => {
                 required 
               />
             </div>
-            
-            <Button type="submit" className="w-full">Login</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing in..." : "Login"}
+            </Button>
           </form>
         </CardContent>
         <CardFooter className="flex justify-center">
