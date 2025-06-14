@@ -156,7 +156,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         />
         <CardContent className="pb-2 space-y-3">
           <div className="flex items-center justify-between">
-            {/* NEW: Pass isActive as boolean for display, but internally it is a session id or null */}
+            {/* Pass isActive as boolean for display only */}
             <ClassStatus isActive={!!classData.isActive} />
             {!!classData.isActive && (
               <ClassTodayAttendanceSummary classData={classData} />
@@ -176,9 +176,10 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         </CardContent>
         <CardFooter>
           <ClassCardFooter
+            // Pass original string/null sessionId to logic, use boolean for button presentation only
             classData={{
               ...classData,
-              isActive: !!classData.isActive, // For button presentation only
+              isActive: !!classData.isActive, // for footer button UI (boolean needed)
             }}
             onToggleStatus={handleToggleStatus}
             onShowDashboard={() => setShowAttendanceDashboard(true)}
@@ -243,3 +244,4 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
 };
 
 export default ClassCard;
+

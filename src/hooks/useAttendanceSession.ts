@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
@@ -32,7 +31,8 @@ export function useAttendanceSession(
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
 
-    let sessionId = classData.isActive ?? null; // isActive now stores session_id or null
+    // isActive is expected to be string | null (uuid or null)
+    let sessionId: string | null = classData.isActive ?? null;
 
     if (sessionId) {
       // Fetch records for this session id
@@ -67,6 +67,7 @@ export function useAttendanceSession(
 
   // EFFECT: Detect change of sessionId (isActive) and reload data if needed
   useEffect(() => {
+    // Only update if the session ID (string or null) has changed
     if (classData.isActive !== prevSessionIdRef.current) {
       activeSessionIdRef.current = classData.isActive ?? null;
       prevSessionIdRef.current = classData.isActive ?? null;
@@ -99,7 +100,7 @@ export function useAttendanceSession(
     }
 
     setLoading(true);
-    let sessionId = classData.isActive ?? null; // uuid or null
+    let sessionId: string | null = classData.isActive ?? null;
     if (!sessionId) {
       setLoading(false);
       toast({
@@ -135,7 +136,7 @@ export function useAttendanceSession(
   // Reset all records for the current session ONLY
   const resetAttendance = async () => {
     setLoading(true);
-    let sessionId = classData.isActive ?? null;
+    let sessionId: string | null = classData.isActive ?? null;
     if (!sessionId) {
       setLoading(false);
       toast({
