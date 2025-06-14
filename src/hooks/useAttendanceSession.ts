@@ -1,134 +1,63 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { StudentAttendanceStatus } from "@/components/StudentAttendanceRow";
+
+import { useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
+import type { StudentAttendanceStatus } from "@/components/StudentAttendanceRow";
+import {
+  createNewClassSession,
+  endLatestOpenSession,
+  getLatestSessionId,
+  getClassStudentProfiles,
+  getAttendanceRecords,
+} from "./attendanceSessionApi";
+import { useClassAttendanceState } from "./useClassAttendanceState";
+import { supabase } from "@/integrations/supabase/client";
 
-// Always creates a brand new session
-async function createNewClassSession(classId: string) {
-  const { data, error } = await supabase
-    .from("class_sessions")
-    .insert({
-      class_id: classId,
-      start_time: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("Error creating new session:", error.message);
-    return null;
-  }
-  return data;
-}
-// Ends any open session (sets end_time)
-async function endLatestOpenSession(classId: string) {
-  // Always try to end any open session, even if no students
-  const { data: sessions, error } = await supabase
-    .from("class_sessions")
-    .select("*")
-    .eq("class_id", classId)
-    .is("end_time", null)
-    .order("start_time", { ascending: false })
-    .limit(1);
-  if (error) {
-    console.error("Error fetching latest open session:", error.message);
-    return null;
-  }
-  if (!sessions || sessions.length === 0) return null;
-  const latestSession = sessions[0];
-  const { error: updateError } = await supabase
-    .from("class_sessions")
-    .update({ end_time: new Date().toISOString() })
-    .eq("id", latestSession.id);
-  if (updateError) {
-    console.error("Error updating end_time for session:", updateError.message);
-    return null;
-  }
-  return latestSession.id;
-}
-
-// Helpers to prevent premature session creation
-async function getLatestSessionId(classId: string) {
-  const { data: sessions, error } = await supabase
-    .from("class_sessions")
-    .select("*")
-    .eq("class_id", classId)
-    .is("end_time", null)
-    .order("start_time", { ascending: false })
-    .limit(1);
-  if (error) return null;
-  if (!sessions || sessions.length === 0) return null;
-  return sessions[0].id;
-}
-
+// Main orchestrator hook
 export function useAttendanceSession(classData: Class, resetFlag?: boolean, onResetDone?: () => void) {
-  const [studentsStatus, setStudentsStatus] = useState<StudentAttendanceStatus[]>([]);
+  const { studentsStatus, setStudentsStatus } = useClassAttendanceState([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const lastSessionIdRef = useRef<string | null>(null);
   const prevActiveRef = useRef<boolean>(classData.isActive);
 
+  // Load attendance and profiles
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
 
     if (classData.isActive) {
-      // Always fetch NEW session for active class
       let sessionId = lastSessionIdRef.current;
       if (!sessionId) {
-        // Get latest open session; will always exist as we explicitly create it below
         sessionId = await getLatestSessionId(classData.id);
         if (sessionId) lastSessionIdRef.current = sessionId;
       }
-
       if (sessionId) {
-        const { data: records, error } = await supabase
-          .from("attendance_records")
-          .select("student_id, status, timestamp")
-          .eq("class_id", classData.id)
-          .eq("session_id", sessionId);
-        if (error) {
-          setStudentsStatus([]);
-        } else {
-          const { data: rels, error: relError } = await supabase
-            .from("classes_students")
-            .select("student_id")
-            .eq("class_id", classData.id);
-          if (relError) {
-            setStudentsStatus([]);
-          } else {
-            const studentIds = (rels ?? []).map((r) => r.student_id);
-            let profileData: Record<string, { user_id: string; name: string }> = {};
-            if (studentIds.length > 0) {
-              const { data: profiles } = await supabase
-                .from("profiles")
-                .select("id, user_id, name")
-                .in("id", studentIds);
-              if (profiles && Array.isArray(profiles)) {
-                profiles.forEach((row) => {
-                  profileData[row.id] = { user_id: row.user_id, name: row.name };
-                });
-              }
-            }
-            const statusMap: Record<string, "present" | "absent"> = {};
-            (records ?? []).forEach((rec) => {
-              statusMap[rec.student_id] = rec.status === "present" ? "present" : "absent";
-            });
-            const results = studentIds.map((studentUuid) => ({
-              userId: profileData[studentUuid]?.user_id || studentUuid,
-              uuid: studentUuid,
-              name: profileData[studentUuid]?.name || "",
-              status: statusMap[studentUuid] || "absent",
-            }));
-            setStudentsStatus(results);
-          }
+        const [records, profiles] = await Promise.all([
+          getAttendanceRecords(classData.id, sessionId),
+          getClassStudentProfiles(classData.id),
+        ]);
+        const profileData: Record<string, { user_id: string; name: string }> = {};
+        if (profiles && Array.isArray(profiles)) {
+          profiles.forEach((row) => {
+            profileData[row.id] = { user_id: row.user_id, name: row.name };
+          });
         }
+        const statusMap: Record<string, "present" | "absent"> = {};
+        (records ?? []).forEach((rec) => {
+          statusMap[rec.student_id] = rec.status === "present" ? "present" : "absent";
+        });
+        const studentIds = (profiles ?? []).map((row) => row.id) || [];
+        const results = studentIds.map((studentUuid) => ({
+          userId: profileData[studentUuid]?.user_id || studentUuid,
+          uuid: studentUuid,
+          name: profileData[studentUuid]?.name || "",
+          status: statusMap[studentUuid] || "absent",
+        }));
+        setStudentsStatus(results);
       } else {
         // No session: treat as all absent
-        const { data: rels } = await supabase
-          .from("classes_students")
-          .select("student_id")
-          .eq("class_id", classData.id);
-        const studentIds = (rels ?? []).map((r) => r.student_id);
+        const profiles = await getClassStudentProfiles(classData.id);
+        const studentIds = (profiles ?? []).map((p) => p.id);
         setStudentsStatus(
           studentIds.map((id) => ({
             uuid: id,
@@ -139,56 +68,40 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
         );
       }
     } else {
-      // Class is inactive: clear ref, show empty/null
       lastSessionIdRef.current = null;
       const studentIds = classData.studentIds || [];
-      let profileData: Record<string, { user_id: string; name: string }> = {};
-      if (studentIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, user_id, name")
-          .in("id", studentIds);
-        if (profiles && Array.isArray(profiles)) {
-          profiles.forEach((row) => {
-            profileData[row.id] = { user_id: row.user_id, name: row.name };
-          });
-        }
-      }
       setStudentsStatus(
         studentIds.map((id) => ({
           uuid: id,
-          userId: profileData[id]?.user_id || "",
-          name: profileData[id]?.name || "",
+          userId: "",
+          name: "",
           status: null as any,
         }))
       );
     }
     setLoading(false);
-  }, [classData]);
+  }, [classData, setStudentsStatus]);
 
+  // Handle effect for activation/deactivation of class
   useEffect(() => {
     const wasActive = prevActiveRef.current;
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Class activated: ALWAYS create a brand new session
       (async () => {
         const newSession = await createNewClassSession(classData.id);
         lastSessionIdRef.current = newSession?.id || null;
-        // After creating session, load (empty) attendance
         loadAttendanceData();
       })();
     } else if (!isActive && wasActive) {
-      // Class stopped: End session and reset dashboard state
       (async () => {
         await endLatestOpenSession(classData.id);
         lastSessionIdRef.current = null;
-        setStudentsStatus([]); // clear local dashboard state
+        setStudentsStatus([]);
         loadAttendanceData();
       })();
     } else {
-      // No state change, just refresh
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,7 +121,6 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
     setLoading(true);
 
     let sessionId = lastSessionIdRef.current;
-    // Only create session on first toggle!
     if (!sessionId) {
       const session = await createNewClassSession(classData.id);
       if (session?.id) {
@@ -319,4 +231,3 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
     exportToCSV,
   };
 }
-// (File is very long, consider refactoring it into smaller hooks for future maintainability.)
