@@ -1,5 +1,4 @@
-
-import { useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
 import type { StudentAttendanceStatus } from "@/components/StudentAttendanceRow";
