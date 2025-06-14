@@ -23,6 +23,7 @@ async function createNewClassSession(classId: string) {
 }
 // Ends any open session (sets end_time)
 async function endLatestOpenSession(classId: string) {
+  // Always try to end any open session, even if no students
   const { data: sessions, error } = await supabase
     .from("class_sessions")
     .select("*")
@@ -47,6 +48,20 @@ async function endLatestOpenSession(classId: string) {
   return latestSession.id;
 }
 
+// Helpers to prevent premature session creation
+async function getLatestSessionId(classId: string) {
+  const { data: sessions, error } = await supabase
+    .from("class_sessions")
+    .select("*")
+    .eq("class_id", classId)
+    .is("end_time", null)
+    .order("start_time", { ascending: false })
+    .limit(1);
+  if (error) return null;
+  if (!sessions || sessions.length === 0) return null;
+  return sessions[0].id;
+}
+
 export function useAttendanceSession(classData: Class, resetFlag?: boolean, onResetDone?: () => void) {
   const [studentsStatus, setStudentsStatus] = useState<StudentAttendanceStatus[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,11 +73,11 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
   const loadAttendanceData = useCallback(async () => {
     setLoading(true);
     if (classData.isActive) {
+      // ONLY fetch session. DO NOT create new.
       let sessionId: string | null = lastSessionIdRef.current;
       if (!sessionId) {
-        const session = await createNewClassSession(classData.id);
-        if (session?.id) {
-          sessionId = session.id;
+        sessionId = await getLatestSessionId(classData.id);
+        if (sessionId) {
           lastSessionIdRef.current = sessionId;
         }
       }
@@ -109,7 +124,20 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
           }
         }
       } else {
-        setStudentsStatus([]);
+        // No session: treat as all absent
+        const { data: rels } = await supabase
+          .from("classes_students")
+          .select("student_id")
+          .eq("class_id", classData.id);
+        const studentIds = (rels ?? []).map((r) => r.student_id);
+        setStudentsStatus(
+          studentIds.map((id) => ({
+            uuid: id,
+            userId: id,
+            name: "",
+            status: "absent" as const,
+          }))
+        );
       }
     } else {
       // Not active: clear session
@@ -145,14 +173,8 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
-    if (isActive && !wasActive) {
-      createNewClassSession(classData.id).then((session) => {
-        if (session?.id) {
-          lastSessionIdRef.current = session.id;
-          loadAttendanceData();
-        }
-      });
-    } else if (!isActive && wasActive) {
+    if (!isActive && wasActive) {
+      // End latest open session (even if nobody marked)
       endLatestOpenSession(classData.id).then(() => {
         lastSessionIdRef.current = null;
         loadAttendanceData();
@@ -175,7 +197,9 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
   const toggleAttendance = async (uuid: string, currentStatus: "present" | "absent") => {
     if (!classData.isActive) return;
     setLoading(true);
+
     let sessionId = lastSessionIdRef.current;
+    // Only create session on first toggle!
     if (!sessionId) {
       const session = await createNewClassSession(classData.id);
       if (session?.id) {
@@ -286,3 +310,4 @@ export function useAttendanceSession(classData: Class, resetFlag?: boolean, onRe
     exportToCSV,
   };
 }
+// (File is very long, consider refactoring it into smaller hooks for future maintainability.)
