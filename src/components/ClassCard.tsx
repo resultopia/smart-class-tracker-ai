@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { deleteClass, toggleClassStatus, toggleOnlineMode, getUserById } from "@/lib/data";
+import { deleteClass, toggleClassStatus, toggleOnlineMode } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Play, Pause, Trash2, Users, ClipboardList, History, Wifi, WifiOff, Upload, ExternalLink, Info } from "lucide-react";
+import { Wifi, WifiOff } from "lucide-react";
 import AttendanceList from "./AttendanceList";
 import AttendanceDashboard from "./AttendanceDashboard";
 import AttendanceHistory from "./AttendanceHistory";
@@ -17,6 +15,8 @@ import EditParticipantsDialog from "./EditParticipantsDialog";
 import DeleteClassButton from "./DeleteClassButton";
 import ClassCardHeader from "./ClassCardHeader";
 import ClassCardFooter from "./ClassCardFooter";
+import ClassOnlineModeAlert from "./ClassOnlineModeAlert";
+import ClassTodayAttendanceSummary from "./ClassTodayAttendanceSummary";
 
 interface ClassCardProps {
   classData: Class;
@@ -34,7 +34,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
 
   const handleToggleStatus = () => {
     const success = toggleClassStatus(classData.id, teacherId);
-    
     if (success) {
       onStatusChange();
       toast({
@@ -54,7 +53,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
 
   const handleToggleOnlineMode = () => {
     const success = toggleOnlineMode(classData.id, teacherId);
-    
     if (success) {
       onStatusChange();
       toast({
@@ -73,8 +71,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   };
 
   const handleDelete = () => {
-    const success = deleteClass(classData.id, teacherId);
-    
+    const success = deleteClass(classData.id, teacherId);    
     if (success) {
       onStatusChange();
     }
@@ -85,19 +82,8 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
     setShowCSVUploadDialog(false);
   };
 
-  const handleExtensionClick = () => {
-    window.open("https://google.co.in", "_blank");
-  };
-
   // Get student count
   const studentCount = classData.studentIds.length;
-
-  // Get attendance count for today
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayAttendanceCount = classData.attendanceRecords.filter(
-    (record) => new Date(record.timestamp) >= todayStart && record.status === "present"
-  ).length;
 
   return (
     <>
@@ -113,16 +99,16 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
               Status: <span className="font-medium">{classData.isActive ? "Active" : "Inactive"}</span>
             </div>
             {classData.isActive && (
-              <div className="text-sm">
-                <span className="font-medium text-green-600">{todayAttendanceCount}</span> present today
-              </div>
+              <ClassTodayAttendanceSummary classData={classData} />
             )}
           </div>
           
           {/* Online Mode Toggle & Info */}
           <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-2">
-              {classData.isOnlineMode ? <Wifi className="h-4 w-4 text-blue-600" /> : <WifiOff className="h-4 w-4 text-gray-500" />}
+              {classData.isOnlineMode 
+                ? <Wifi className="h-4 w-4 text-blue-600" /> 
+                : <WifiOff className="h-4 w-4 text-gray-500" />}
               <Label htmlFor={`online-mode-${classData.id}`} className="text-sm font-medium">
                 Online Mode
               </Label>
@@ -134,24 +120,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             />
           </div>
           {classData.isOnlineMode && (
-            <Alert className="border-blue-200 bg-blue-50">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-sm">
-                <div className="space-y-2">
-                  <p className="font-medium text-blue-700">Online Mode Active</p>
-                  <p className="text-blue-600">
-                    Online attendance can be fetched from Google Meet through our extension.
-                  </p>
-                  <button 
-                    onClick={handleExtensionClick}
-                    className="inline-flex items-center text-blue-700 hover:text-blue-800 underline text-sm font-medium transition-colors"
-                  >
-                    Get Extension
-                    <ExternalLink className="h-3 w-3 ml-1" />
-                  </button>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <ClassOnlineModeAlert />
           )}
         </CardContent>
         <CardFooter>
