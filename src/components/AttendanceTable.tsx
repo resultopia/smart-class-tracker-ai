@@ -5,9 +5,10 @@ import StudentAttendanceRow, { StudentAttendanceStatus } from "./StudentAttendan
 interface AttendanceTableProps {
   studentsStatus: StudentAttendanceStatus[];
   onToggleAttendance: (uuid: string, currentStatus: "present" | "absent") => void;
+  isClassActive: boolean; // new prop
 }
 
-const AttendanceTable = ({ studentsStatus, onToggleAttendance }: AttendanceTableProps) => (
+const AttendanceTable = ({ studentsStatus, onToggleAttendance, isClassActive }: AttendanceTableProps) => (
   <div className="border rounded-md">
     <Table>
       <TableHeader>
@@ -32,6 +33,7 @@ const AttendanceTable = ({ studentsStatus, onToggleAttendance }: AttendanceTable
               key={student.uuid}
               student={student}
               onToggleAttendance={onToggleAttendance}
+              isClassActive={isClassActive}
             />
           ))
         )}
@@ -41,4 +43,3 @@ const AttendanceTable = ({ studentsStatus, onToggleAttendance }: AttendanceTable
 );
 
 export default AttendanceTable;
-

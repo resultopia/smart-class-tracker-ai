@@ -310,7 +310,11 @@ const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDa
           Loading attendance...
         </div>
       )}
-      <AttendanceTable studentsStatus={studentsStatus} onToggleAttendance={toggleAttendance} />
+      <AttendanceTable 
+        studentsStatus={studentsStatus} 
+        onToggleAttendance={toggleAttendance} 
+        isClassActive={classData.isActive}
+      />
     </div>
   );
 };
