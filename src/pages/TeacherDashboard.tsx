@@ -77,7 +77,7 @@ const TeacherDashboard = () => {
     const { data: classRows, error } = await supabase
       .from("classes")
       .select("*")
-      .eq("teacher_id", currentUser.id);
+      .eq("teacher_id", currentUser.userId);
     if (classRows) {
       // For each class, get associated students
       const classList: Class[] = [];

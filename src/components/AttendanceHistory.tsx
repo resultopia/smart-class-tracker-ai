@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -33,13 +34,14 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const [userLookup, setUserLookup] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  // Load all attendance and sessions from Supabase
+  // Load attendance and sessions from Supabase
   useEffect(() => {
     const fetchAttendance = async () => {
-      // Fetch sessions for this class
       let filteredSessions: ClassSession[] = [];
+      let attendance: AttendanceRecord[] = [];
+
       if (selectedDate) {
-        // Get all class_sessions for date
+        // Get class_sessions for selected date
         const dateStart = new Date(selectedDate);
         dateStart.setHours(0, 0, 0, 0);
         const dateEnd = new Date(dateStart);
@@ -73,12 +75,12 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
       }
       setDateSessions(filteredSessions);
 
-      // Prefetch attendance records (all for that class, can later filter)
+      // Attendance records for the class
       const { data: recordsRows } = await supabase
         .from("attendance_records")
         .select("*")
         .eq("class_id", classData.id);
-      const attendance = recordsRows?.map((row) => ({
+      attendance = recordsRows?.map((row) => ({
         studentId: row.student_id,
         timestamp: new Date(row.timestamp),
         status: row.status as "present" | "absent",
@@ -86,11 +88,10 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
       })) || [];
       setAllRecords(attendance);
 
-      // Filter records for this date if none selected
+      // Set filteredByDate records for this day and session
       if (!selectedDate) {
         setFilteredRecords(attendance);
       } else {
-        // Only those from sessions of today
         const todaySessionIds = filteredSessions.map(s => s.sessionId);
         setFilteredRecords(attendance.filter(rec => rec.sessionId && todaySessionIds.includes(rec.sessionId)));
       }
@@ -98,10 +99,9 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     fetchAttendance();
   }, [classData.id, selectedDate]);
 
-  // All user name lookups also will use Supabase
+  // User lookup from profiles (Supabase)
   useEffect(() => {
     const fetchUserNames = async () => {
-      // Get unique user ids
       const ids = classData.studentIds;
       if (!ids.length) return;
       const { data: profiles } = await supabase
@@ -118,43 +118,19 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     fetchUserNames();
   }, [classData.studentIds]);
 
-  const filterRecordsByDate = (records: AttendanceRecord[], date: Date | undefined) => {
-    if (!date) {
-      setFilteredRecords(records);
-      setDateSessions([]);
-      setSelectedSession(null);
-      return;
-    }
-    
-    // Get sessions for selected date
-    const sessions = getClassSessionsForDate(classData.id, date);
-    setDateSessions(sessions);
-    setSelectedSession(null);
-    
-    if (sessions.length === 0) {
-      // No sessions found, show current day records if any
-      const filtered = records.filter(record => {
-        const recordDate = new Date(record.timestamp);
-        return recordDate.toDateString() === date.toDateString();
-      });
-      setFilteredRecords(filtered);
-    } else {
-      // Show message to select a session
-      setFilteredRecords([]);
-    }
-  };
-
-  // Util: Get combined attendance list for session (present + absent)
+  // Get all records for selected session
   const getAllRecordsForSession = (session: ClassSession): AttendanceRecord[] => {
-    // Map student ID to record, including explicit 'absent' if none found
+    // For each student, get record (or mark absent)
     return classData.studentIds.map((studentId) => {
-      const record = session.attendanceRecords.find(r => r.studentId === studentId);
+      const record = allRecords.find(
+        r => r.sessionId === session.sessionId && r.studentId === studentId
+      );
       if (record) return record;
-      // Explicitly type as AttendanceRecord, status as "absent"
       return {
         studentId,
-        timestamp: session.startTime, // use session start as created time
-        status: "absent" as const
+        timestamp: session.startTime,
+        status: "absent" as const,
+        sessionId: session.sessionId,
       };
     });
   };
@@ -164,123 +140,82 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     setFilteredRecords(getAllRecordsForSession(session));
   };
 
-  const deleteSession = (sessionId: string) => {
-    const refreshedData = initializeData();
-    const classes = refreshedData.classes;
-    
-    const updatedClasses = classes.map(cls => {
-      if (cls.id === classData.id) {
-        return {
-          ...cls,
-          sessions: cls.sessions.filter(session => session.sessionId !== sessionId)
-        };
-      }
-      return cls;
-    });
-    
-    saveClasses(updatedClasses);
-    
-    // Refresh the sessions for the selected date
-    if (selectedDate) {
-      const sessions = getClassSessionsForDate(classData.id, selectedDate);
-      setDateSessions(sessions);
-      if (selectedSession?.sessionId === sessionId) {
-        setSelectedSession(null);
-        setFilteredRecords([]);
-      }
-    }
-    
+  // Delete a session and related attendance (Supabase)
+  const deleteSession = async (sessionId: string) => {
+    // First, delete attendance records for this session
+    await supabase
+      .from("attendance_records")
+      .delete()
+      .eq("session_id", sessionId);
+
+    // Then, delete the class session
+    await supabase
+      .from("class_sessions")
+      .delete()
+      .eq("id", sessionId);
+
     toast({
       title: "Session Deleted",
-      description: "The class session has been deleted successfully."
+      description: "The class session has been deleted successfully.",
     });
+
+    setSelectedSession(null);
+    setFilteredRecords([]);
+    setDateSessions(dateSessions.filter((s) => s.sessionId !== sessionId));
   };
 
-  const toggleAttendanceStatus = (studentId: string, currentStatus: "present" | "absent") => {
+  // Toggle attendance status for a student in a session via Supabase
+  const toggleAttendanceStatus = async (studentId: string, currentStatus: "present" | "absent") => {
     if (!selectedSession) return;
-    
-    const refreshedData = initializeData();
-    const classes = refreshedData.classes;
-    
-    const newStatus: "present" | "absent" = currentStatus === "present" ? "absent" : "present";
-    
-    const updatedClasses = classes.map(cls => {
-      if (cls.id === classData.id) {
-        return {
-          ...cls,
-          sessions: cls.sessions.map(session => {
-            if (session.sessionId === selectedSession.sessionId) {
-              // Update (toggle) or add missing record
-              const existingRecordIdx = session.attendanceRecords.findIndex(
-                r => r.studentId === studentId
-              );
-              let updatedAttendanceRecords;
-              if (existingRecordIdx >= 0) {
-                // Toggle, update status
-                updatedAttendanceRecords = session.attendanceRecords.map(r =>
-                  r.studentId === studentId
-                    ? { ...r, status: newStatus, timestamp: new Date() }
-                    : r
-                );
-              } else {
-                // Add new present record
-                updatedAttendanceRecords = [
-                  ...session.attendanceRecords,
-                  { studentId, timestamp: new Date(), status: newStatus }
-                ];
-              }
-              return {
-                ...session,
-                attendanceRecords: updatedAttendanceRecords
-              };
-            }
-            return session;
-          })
-        };
-      }
-      return cls;
-    });
-    
-    saveClasses(updatedClasses);
-    
-    // Get updated sessions for correct timestamp and new attendance
-    const refreshed = initializeData();
-    const thisClass = refreshed.classes.find(c => c.id === classData.id);
-    const thisSession = thisClass?.sessions.find(
-      s => s.sessionId === selectedSession.sessionId
+    const newStatus = currentStatus === "present" ? "absent" : "present";
+    const record = allRecords.find(
+      r => r.sessionId === selectedSession.sessionId && r.studentId === studentId
     );
-    setSelectedSession(thisSession || null);
-    setFilteredRecords(thisSession ? getAllRecordsForSession(thisSession) : []);
-    
+    if (record) {
+      // Update record
+      await supabase
+        .from("attendance_records")
+        .update({ status: newStatus, timestamp: new Date().toISOString() })
+        .eq("session_id", selectedSession.sessionId)
+        .eq("student_id", studentId);
+    } else {
+      // Insert new record
+      await supabase.from("attendance_records").insert({
+        class_id: classData.id,
+        session_id: selectedSession.sessionId,
+        student_id: studentId,
+        timestamp: new Date().toISOString(),
+        status: newStatus,
+      });
+    }
     toast({
       title: "Attendance Updated",
-      description: `Student marked as ${newStatus}.`
+      description: `Student marked as ${newStatus}.`,
     });
+    // Refresh UI state
+    setSelectedSession({ ...selectedSession }); // force rerender
+    setFilteredRecords(getAllRecordsForSession(selectedSession));
   };
 
+  // Export CSV
   const exportFilteredCSV = async () => {
     const headers = ['student_id', 'student_name', 'date', 'time', 'status'];
-    // Await all name resolutions
     const csvData: string[][] = [];
     for (const record of filteredRecords) {
-      const studentPromise = getUserById(record.studentId);
-      // Await the resolved user
-      const student = await studentPromise;
+      const name = userLookup[record.studentId] || "Unknown";
       const recordDate = new Date(record.timestamp);
       csvData.push([
         record.studentId,
-        student?.name || "Unknown",
+        name,
         recordDate.toLocaleDateString(),
         recordDate.toLocaleTimeString(),
         record.status || "present"
       ]);
     }
-
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => row.join(','))
     ].join('\n');
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'all-dates';
@@ -302,7 +237,7 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const clearDateFilter = () => {
     setSelectedDate(undefined);
     setSelectedSession(null);
-    filterRecordsByDate(allRecords, undefined);
+    setFilteredRecords(allRecords);
   };
 
   return (

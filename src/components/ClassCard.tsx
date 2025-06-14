@@ -80,10 +80,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   };
 
   const handleDelete = () => {
-    const success = deleteClass(classData.id, teacherId);    
-    if (success) {
-      onStatusChange();
-    }
+    onStatusChange();
   };
 
   const handleCSVUploadComplete = () => {
