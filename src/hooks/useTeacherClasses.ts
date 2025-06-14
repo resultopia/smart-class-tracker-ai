@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -38,29 +39,30 @@ export const useTeacherClasses = () => {
       .select("*")
       .eq("teacher_id", teacherUUID);
 
-    // Keep the order of classes the same if possible
-    setClasses((prev) => {
-      let prevOrder = prev.map(c => c.id);
-      let classList: Class[] = [];
-      if (classRows) {
-        for (const cls of classRows) {
-          const { data: joined } = await supabase
-            .from("classes_students")
-            .select("student_id")
-            .eq("class_id", cls.id);
-          const studentIds = joined ? joined.map((j) => j.student_id) : [];
-          classList.push({
-            id: cls.id,
-            name: cls.name,
-            teacherId: cls.teacher_id,
-            studentIds,
-            isActive: cls.is_active,
-            isOnlineMode: cls.is_online_mode,
-            attendanceRecords: [],
-            sessions: [],
-          });
-        }
-        // Try to order classList using prevOrder
+    if (classRows) {
+      // Gather studentIds for each class
+      const classList: Class[] = [];
+      for (const cls of classRows) {
+        // Fetch student_ids for this class
+        const { data: joined } = await supabase
+          .from("classes_students")
+          .select("student_id")
+          .eq("class_id", cls.id);
+        const studentIds = joined ? joined.map((j) => j.student_id) : [];
+        classList.push({
+          id: cls.id,
+          name: cls.name,
+          teacherId: cls.teacher_id,
+          studentIds,
+          isActive: cls.is_active,
+          isOnlineMode: cls.is_online_mode,
+          attendanceRecords: [],
+          sessions: [],
+        });
+      }
+      // Preserve previous order if possible
+      setClasses((prev) => {
+        let prevOrder = prev.map(c => c.id);
         classList.sort((a, b) => {
           let aIdx = prevOrder.indexOf(a.id);
           let bIdx = prevOrder.indexOf(b.id);
@@ -69,9 +71,9 @@ export const useTeacherClasses = () => {
           if (bIdx === -1) return -1;
           return aIdx - bIdx;
         });
-      }
-      return classList;
-    });
+        return classList;
+      });
+    }
   }, [teacherUUID]);
 
   const loadStudents = useCallback(async () => {
