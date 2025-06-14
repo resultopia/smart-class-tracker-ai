@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { 
   getStudentsAttendanceStatus,
   markAttendance,
@@ -19,17 +19,19 @@ interface AttendanceDashboardProps {
 
 const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
   const [studentsStatus, setStudentsStatus] = useState<StudentAttendanceStatus[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (classData) {
-      (async () => { await loadAttendanceData(); })();
+      loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classData]);
 
   // Loads attendance and merges with class students: ensures all students in class appear
   const loadAttendanceData = async () => {
+    setLoading(true);
     // 1. Get today's attendance status for class
     const attendanceStatusArr = await getStudentsAttendanceStatus(classData.id);
     // 2. Fetch all student profiles in the class
@@ -60,42 +62,36 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
     }));
 
     setStudentsStatus(allStudents);
+    setLoading(false);
   };
 
+  // Ensure markAttendance is awaited, and reload after change
   const toggleAttendance = async (uuid: string, currentStatus: "present" | "absent") => {
+    setLoading(true);
     const newStatus = currentStatus === "present" ? "absent" : "present";
-    console.log("[toggleAttendance] called with:", {
-      classId: classData.id,
-      uuid,
-      currentStatus,
-      newStatus
-    });
     const success = await markAttendance(classData.id, uuid, newStatus);
 
     if (success) {
-      loadAttendanceData();
+      await loadAttendanceData();
       toast({
         title: "Attendance Updated",
         description: `Student marked as ${newStatus}.`
       });
     } else {
-      console.error("[toggleAttendance] Failed markAttendance:", {
-        classId: classData.id,
-        uuid,
-        newStatus
-      });
       toast({
         title: "Error",
         description: "Failed to update attendance.",
         variant: "destructive"
       });
     }
+    setLoading(false);
   };
 
   const handleResetAttendance = async () => {
+    setLoading(true);
     const success = await resetTodayAttendance(classData.id);
     if (success) {
-      loadAttendanceData();
+      await loadAttendanceData();
       toast({
         title: "Attendance Reset",
         description: "All attendance records for today have been cleared."
@@ -107,6 +103,7 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
         variant: "destructive"
       });
     }
+    setLoading(false);
   };
 
   const exportToCSV = () => {
@@ -147,6 +144,7 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
             variant="outline" 
             size="sm" 
             onClick={handleResetAttendance}
+            disabled={loading}
           >
             <RefreshCcw className="h-4 w-4 mr-2" />
             Reset All
@@ -155,14 +153,21 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
             variant="outline"
             size="sm"
             onClick={exportToCSV}
+            disabled={loading}
           >
             <FileDown className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
         </div>
       </div>
+      {loading && (
+        <div className="text-center py-4 text-muted-foreground text-sm">
+          Loading attendance...
+        </div>
+      )}
       <AttendanceTable studentsStatus={studentsStatus} onToggleAttendance={toggleAttendance} />
     </div>
   );
 };
 export default AttendanceDashboard;
+
