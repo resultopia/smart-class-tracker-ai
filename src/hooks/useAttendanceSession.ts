@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
@@ -22,6 +21,21 @@ export function useAttendanceSession(
   const activeSessionIdRef = useRef<string | null>(classData.isActive ?? null);
   const prevSessionIdRef = useRef<string | null>(classData.isActive ?? null);
 
+  // Helper: Always get the list of student IDs from the database relation table
+  const fetchStudentIdsFromDb = useCallback(async () => {
+    // NOTE: We want the freshest list, just in case
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: rels, error } = await supabase
+      .from("classes_students")
+      .select("student_id")
+      .eq("class_id", classData.id);
+    if (error) {
+      console.error("Unable to load students from database:", error);
+      return [];
+    }
+    return (rels ?? []).map((r: { student_id: string }) => r.student_id);
+  }, [classData.id]);
+
   // Helper: Initialize all students as absent for a fresh list
   const initializeAllAbsent = useCallback(async () => {
     const profiles = await api.fetchProfiles(classData.id);
@@ -35,7 +49,7 @@ export function useAttendanceSession(
     let sessionId: string | null = classData.isActive ?? null;
 
     if (sessionId) {
-      // Fetch records for this session id
+      // Session is active: Combine attendance records with profiles
       const [records, profiles] = await Promise.all([
         api.fetchAttendanceRecords(classData.id, sessionId),
         api.fetchProfiles(classData.id),
@@ -46,15 +60,17 @@ export function useAttendanceSession(
         setStudentsStatus(mergeAttendanceWithProfiles(records, profiles ?? []));
       }
     } else {
-      // Class is not active - show all with status null
-      // Fix: always try to show the correct students even if profiles are missing!
-      const profiles = await api.fetchProfiles(classData.id);
-      const studentIds = classData.studentIds || [];
-      // If profiles could not be fetched OR returned empty, fallback to showing studentIds as userId
-      const statusList: StudentAttendanceStatus[] = [];
-      if (profiles && profiles.length) {
+      // Session is not active: Show all students using list from classes_students
+      try {
+        const studentIds = await fetchStudentIdsFromDb();
+        let profiles = await api.fetchProfiles(classData.id);
+        // filter profiles so only the ones matching class_students will be shown
+        profiles = (profiles || []).filter((p: any) => studentIds.includes(p.id));
+
+        // fallback: for students not found as profiles, create a placeholder
+        const statusList: StudentAttendanceStatus[] = [];
         for (const id of studentIds) {
-          const profile = profiles.find((p) => p.id === id);
+          const profile = profiles.find((p: any) => p.id === id);
           statusList.push({
             uuid: id,
             userId: profile?.user_id || id,
@@ -62,28 +78,17 @@ export function useAttendanceSession(
             status: null,
           });
         }
-      } else {
-        // profiles not found, fallback to plain list from classData.studentIds
-        for (const id of studentIds) {
-          statusList.push({
-            uuid: id,
-            userId: id,
-            name: id,
-            status: null,
-          });
-        }
+        setStudentsStatus(statusList);
+      } catch (e) {
+        console.error("Failed to load students for dashboard:", e);
+        setStudentsStatus([]);
       }
-      // Add debug log if loaded nothing but class claims students exist:
-      if (studentIds.length > 0 && statusList.length === 0) {
-        // eslint-disable-next-line no-console
-        console.log("[AttendanceDashboard]: StudentIds present but no matching profiles. studentIds:", studentIds, "profiles:", profiles);
-      }
-      setStudentsStatus(statusList);
     }
     setLoading(false);
   }, [
     classData,
     setStudentsStatus,
+    fetchStudentIdsFromDb,
     initializeAllAbsent,
   ]);
 
@@ -224,4 +229,3 @@ export function useAttendanceSession(
 }
 
 // NOTE: This file is getting quite long! Please consider asking me to refactor it for better maintainability.
-
