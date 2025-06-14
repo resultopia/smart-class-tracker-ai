@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,29 @@ const CreateClassDialog = ({
 }: CreateClassDialogProps) => {
   const handleCSVStudentsUploaded = (ids: string[]) => setCsvStudents(ids);
 
+  // For debugging: log students loaded in manual select tab
+  if (open) {
+    // Only log when dialog is open to reduce spam
+    console.log("[CreateClassDialog] Students passed in:", students);
+  }
+
+  // Defensive: Map student objects to {id, name} with fallbacks
+  const mappedStudents = Array.isArray(students)
+    ? students
+        .map((student) => {
+          // Try all likely property keys, fallback to null if missing
+          const studentId = student.user_id || student.userId || student.id || null;
+          const studentName =
+            student.name ||
+            student.username ||
+            (studentId ? String(studentId).slice(0, 8) : "Unnamed Student");
+          // Don't render row unless studentId exists
+          if (!studentId) return null;
+          return { id: studentId, name: studentName };
+        })
+        .filter(Boolean)
+    : [];
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -77,49 +101,43 @@ const CreateClassDialog = ({
               <div className="space-y-2">
                 <Label>Select Students Manually</Label>
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
-                  {students.length === 0 && (
+                  {mappedStudents.length === 0 && (
                     <span className="text-sm text-muted-foreground col-span-2">
                       No students available to select.
                     </span>
                   )}
-                  {students.map((student) => {
-                    // Defensive: support both user_id (from db) and userId (from static/mock data/etc)
-                    const studentId = student.user_id || student.userId || "";
-                    const studentName = student.name || student.username || "Unnamed Student";
-                    return (
+                  {mappedStudents.map(({ id, name }) => (
+                    <div
+                      key={id}
+                      className={`
+                        flex items-center space-x-2 p-2 rounded
+                        ${selectedStudents.includes(id)
+                          ? "bg-primary/10 border border-primary"
+                          : "border hover:bg-muted cursor-pointer"}
+                      `}
+                      onClick={() => {
+                        if (selectedStudents.includes(id)) {
+                          setSelectedStudents(selectedStudents.filter((sid) => sid !== id));
+                        } else {
+                          setSelectedStudents([...selectedStudents, id]);
+                        }
+                      }}
+                    >
                       <div
-                        key={studentId}
                         className={`
-                          flex items-center space-x-2 p-2 rounded
-                          ${selectedStudents.includes(studentId)
-                            ? "bg-primary/10 border border-primary"
-                            : "border hover:bg-muted cursor-pointer"}
+                          h-5 w-5 flex items-center justify-center rounded-sm
+                          ${selectedStudents.includes(id)
+                            ? "bg-primary text-primary-foreground"
+                            : "border"}
                         `}
-                        onClick={() => {
-                          if (selectedStudents.includes(studentId)) {
-                            setSelectedStudents(selectedStudents.filter((sid) => sid !== studentId));
-                          } else {
-                            setSelectedStudents([...selectedStudents, studentId]);
-                          }
-                        }}
                       >
-                        <div
-                          className={`
-                            h-5 w-5 flex items-center justify-center rounded-sm
-                            ${selectedStudents.includes(studentId)
-                              ? "bg-primary text-primary-foreground"
-                              : "border"}
-                          `}
-                        >
-                          {selectedStudents.includes(studentId) && <CheckIcon className="h-3 w-3" />}
-                        </div>
-                        <span className="text-sm">
-                          {/* Show name and user_id/userId */}
-                          {studentName} ({studentId})
-                        </span>
+                        {selectedStudents.includes(id) && <CheckIcon className="h-3 w-3" />}
                       </div>
-                    );
-                  })}
+                      <span className="text-sm">
+                        {name} ({id})
+                      </span>
+                    </div>
+                  ))}
                 </div>
                 {selectedStudents.length > 0 && (
                   <p className="text-sm text-muted-foreground">
@@ -172,3 +190,4 @@ const CreateClassDialog = ({
 };
 
 export default CreateClassDialog;
+
