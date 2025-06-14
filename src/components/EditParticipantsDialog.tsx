@@ -3,16 +3,12 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Users, UserMinus, UserPlus } from "lucide-react";
+import { Users, UserMinus, UserPlus, Upload } from "lucide-react";
 import { getUsersByRole } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
 import { Class } from "@/lib/types";
+import CSVUpload from "./CSVUpload";
 
-// Props:
-// - open: boolean (dialog state)
-// - onOpenChange: function
-// - classData: Class (the class object)
-// - onStudentsUpdated: function (callback after update)
 interface EditParticipantsDialogProps {
   open: boolean;
   onOpenChange: (b: boolean) => void;
@@ -48,10 +44,32 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
 
   // Save: propagate changes upward
   const handleSave = async () => {
-    // To update: pass back the new ID list
     onStudentsUpdated(studentIds);
     toast({ title: "Participants Updated", description: "Student list updated." });
     onOpenChange(false);
+  };
+
+  // Handle CSV upload: Only add unique IDs that are not already present and exist in system
+  const handleBulkUpload = (uploadedIds: string[]) => {
+    // Filter only valid student userIds
+    const validIds = uploadedIds
+      .filter(id => 
+        allStudents.some(s => s.userId === id) && 
+        !selectedSet.has(id)
+      );
+    if (validIds.length === 0) {
+      toast({
+        title: "No new valid students",
+        description: "No new valid student usernames found in CSV.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setStudentIds(prev => Array.from(new Set([...prev, ...validIds])));
+    toast({
+      title: "Students Added",
+      description: `${validIds.length} students added from CSV.`
+    });
   };
 
   return (
@@ -95,33 +113,48 @@ const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdat
             </div>
           </div>
           {/* Right: Add from all students */}
-          <div className="w-full md:w-1/2">
-            <h4 className="font-medium mb-1">Add Students</h4>
-            <Input
-              placeholder="Filter by name or ID"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="mb-2"
-            />
-            <div className="rounded border bg-slate-50 p-2 h-60 overflow-y-auto space-y-1">
-              {filteredAllStudents.length === 0 && (
-                <div className="text-sm text-muted-foreground">No students found.</div>
-              )}
-              {filteredAllStudents.map(stu => (
-                <div key={stu.userId} className="flex items-center justify-between px-2 py-1 rounded hover:bg-green-50">
-                  <span className="text-sm">{stu.name} <span className="ml-1 text-xs text-muted-foreground">({stu.userId})</span></span>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={() => addStudent(stu.userId)}
-                    className="ml-2"
-                    disabled={selectedSet.has(stu.userId)}
-                    title="Add"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+          <div className="w-full md:w-1/2 flex flex-col gap-4">
+            <div>
+              <h4 className="font-medium mb-1">Add Students</h4>
+              <Input
+                placeholder="Filter by name or ID"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="mb-2"
+                data-testid="participant-search-input"
+              />
+              <div className="rounded border bg-slate-50 p-2 h-32 overflow-y-auto space-y-1">
+                {filteredAllStudents.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No students found.</div>
+                )}
+                {filteredAllStudents.map(stu => (
+                  <div key={stu.userId} className="flex items-center justify-between px-2 py-1 rounded hover:bg-green-50">
+                    <span className="text-sm">{stu.name} <span className="ml-1 text-xs text-muted-foreground">({stu.userId})</span></span>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => addStudent(stu.userId)}
+                      className="ml-2"
+                      disabled={selectedSet.has(stu.userId)}
+                      title="Add"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bulk CSV Upload */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Upload className="h-4 w-4 text-blue-700" />
+                <span className="font-medium text-sm">Bulk Add From CSV</span>
+              </div>
+              <CSVUpload
+                existingStudents={studentIds}
+                onStudentsUploaded={handleBulkUpload}
+              />
             </div>
           </div>
         </div>
