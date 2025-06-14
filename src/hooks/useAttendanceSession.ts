@@ -74,21 +74,41 @@ export function useAttendanceSession(
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Debug: Starting class, force-creating new session
-      console.log(`[AttendanceSession] STARTING class: ${classData.id} (${classData.name})`);
+      // Attempting to create a new session
+      console.log(`[AttendanceSession] STARTING class: ${classData.id} (${classData.name}) [attempting session create]`);
       (async () => {
         setLoading(true);
-        const newSession = await api.forceCreateSession(classData.id);
-        if (newSession?.id) {
-          lastSessionIdRef.current = newSession.id;
-          console.log(`[AttendanceSession] New session created`, {
-            classId: classData.id,
-            sessionId: newSession.id,
-            time: newSession.start_time
-          });
-        } else {
+        try {
+          const newSession = await api.forceCreateSession(classData.id);
+          if (newSession?.id) {
+            lastSessionIdRef.current = newSession.id;
+            console.log(`[AttendanceSession] New session created`, {
+              classId: classData.id,
+              sessionId: newSession.id,
+              time: newSession.start_time,
+            });
+            toast({
+              title: "Session Created",
+              description: `New session started: ${newSession.id}`,
+              variant: "default",
+            });
+          } else {
+            lastSessionIdRef.current = null;
+            console.warn(`[AttendanceSession] Failed to create new session for class: ${classData.id}`);
+            toast({
+              title: "Session Creation Failed",
+              description: "Could not create a new session. Check Supabase logs.",
+              variant: "destructive",
+            });
+          }
+        } catch (e) {
           lastSessionIdRef.current = null;
-          console.warn(`[AttendanceSession] Failed to create new session for class: ${classData.id}`);
+          console.error(`[AttendanceSession] Exception during session create:`, e);
+          toast({
+            title: "Session Creation Error",
+            description: "Error thrown during session creation, see console.",
+            variant: "destructive",
+          });
         }
         await initializeAllAbsent();
         setLoading(false);
@@ -98,13 +118,21 @@ export function useAttendanceSession(
       console.log(`[AttendanceSession] STOPPING class: ${classData.id} (${classData.name})`);
       (async () => {
         setLoading(true);
-        await api.endOpenSession(classData.id);
-        // Log last session Id after ending
-        console.log(`[AttendanceSession] Stopped session for class`, {
-          classId: classData.id,
-          lastSessionId: lastSessionIdRef.current,
-          time: new Date().toISOString()
-        });
+        try {
+          await api.endOpenSession(classData.id);
+          console.log(`[AttendanceSession] Stopped session for class`, {
+            classId: classData.id,
+            lastSessionId: lastSessionIdRef.current,
+            time: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.error(`[AttendanceSession] Exception during session stop:`, e);
+          toast({
+            title: "Session End Error",
+            description: "Error thrown during session end, see console.",
+            variant: "destructive",
+          });
+        }
         lastSessionIdRef.current = null;
         setStudentsStatus([]);
         await loadAttendanceData();
