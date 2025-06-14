@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
@@ -93,15 +92,17 @@ export function useAttendanceSession(
           await initializeAllAbsent();
         }
       } else {
-        // If class is inactive, clear records
+        // If class is inactive, show student names (status: null)
         lastSessionIdRef.current = null;
+        // Fetch profiles for display
+        const profiles = await getClassStudentProfiles(classData.id);
         const studentIds = classData.studentIds || [];
         setStudentsStatus(
-          studentIds.map((id) => ({
+          (studentIds ?? []).map((id) => ({
             uuid: id,
-            userId: "",
-            name: "",
-            status: null as any,
+            userId: profiles?.find((p) => p.id === id)?.user_id || id,
+            name: profiles?.find((p) => p.id === id)?.name || "",
+            status: null,
           }))
         );
       }
