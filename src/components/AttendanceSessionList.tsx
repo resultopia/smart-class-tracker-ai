@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Clock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -46,16 +45,10 @@ const AttendanceSessionList = ({
                   : "text-muted-foreground"
               )}>
                 {format(new Date(session.startTime), 'HH:mm')} - {
-                  session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
+                  session.endTime
+                    ? format(new Date(session.endTime), 'HH:mm')
+                    : 'Ended'
                 }
-              </div>
-              <div className={cn(
-                "text-xs",
-                selectedSession?.sessionId === session.sessionId 
-                  ? "text-white" 
-                  : "text-muted-foreground"
-              )}>
-                {session.attendanceRecords.length} records
               </div>
             </div>
           </div>
