@@ -1,12 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { deleteClass, toggleClassStatus, toggleOnlineMode } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
-import { Wifi, WifiOff } from "lucide-react";
-import AttendanceList from "./AttendanceList";
 import AttendanceDashboard from "./AttendanceDashboard";
 import AttendanceHistory from "./AttendanceHistory";
 import CSVAttendanceUpload from "./CSVAttendanceUpload";
@@ -17,6 +13,9 @@ import ClassCardHeader from "./ClassCardHeader";
 import ClassCardFooter from "./ClassCardFooter";
 import ClassOnlineModeAlert from "./ClassOnlineModeAlert";
 import ClassTodayAttendanceSummary from "./ClassTodayAttendanceSummary";
+import ClassStatus from "./ClassStatus";
+import StudentCount from "./StudentCount";
+import OnlineModeToggle from "./OnlineModeToggle";
 
 interface ClassCardProps {
   classData: Class;
@@ -95,30 +94,19 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         />
         <CardContent className="pb-2 space-y-3">
           <div className="flex items-center justify-between">
-            <div className={`text-sm ${classData.isActive ? "text-primary" : "text-muted-foreground"}`}>
-              Status: <span className="font-medium">{classData.isActive ? "Active" : "Inactive"}</span>
-            </div>
+            <ClassStatus isActive={classData.isActive} />
             {classData.isActive && (
               <ClassTodayAttendanceSummary classData={classData} />
             )}
           </div>
-          
-          {/* Online Mode Toggle & Info */}
-          <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-2">
-              {classData.isOnlineMode 
-                ? <Wifi className="h-4 w-4 text-blue-600" /> 
-                : <WifiOff className="h-4 w-4 text-gray-500" />}
-              <Label htmlFor={`online-mode-${classData.id}`} className="text-sm font-medium">
-                Online Mode
-              </Label>
-            </div>
-            <Switch
-              id={`online-mode-${classData.id}`}
-              checked={classData.isOnlineMode}
-              onCheckedChange={handleToggleOnlineMode}
-            />
+          <div className="flex items-center justify-between mt-2">
+            <StudentCount count={studentCount} />
           </div>
+          <OnlineModeToggle 
+            classId={classData.id}
+            checked={classData.isOnlineMode}
+            onToggle={handleToggleOnlineMode}
+          />
           {classData.isOnlineMode && (
             <ClassOnlineModeAlert />
           )}
