@@ -33,6 +33,7 @@ const AttendanceRecordsTable = ({
           {filteredRecords.map((record, index) => {
             const recordDate = new Date(record.timestamp);
             const currentStatus = record.status || "present";
+            const isPresent = currentStatus === "present";
             return (
               <TableRow key={index}>
                 {/* Removed studentId cell */}
@@ -41,8 +42,8 @@ const AttendanceRecordsTable = ({
                 <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
                 <TableCell>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    currentStatus === "present" 
-                      ? "bg-green-100 text-green-800" 
+                    isPresent
+                      ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
                   }`}>
                     {currentStatus}
@@ -53,9 +54,14 @@ const AttendanceRecordsTable = ({
                     <Button
                       variant="outline"
                       size="sm"
+                      className={
+                        isPresent
+                          ? "bg-red-700 hover:bg-red-800 text-white border-none"
+                          : "bg-green-700 hover:bg-green-800 text-white border-none"
+                      }
                       onClick={() => toggleAttendanceStatus(record.studentId, currentStatus)}
                     >
-                      Mark {currentStatus === "present" ? "Absent" : "Present"}
+                      Mark {isPresent ? "Absent" : "Present"}
                     </Button>
                   </TableCell>
                 )}
@@ -69,3 +75,4 @@ const AttendanceRecordsTable = ({
 };
 
 export default AttendanceRecordsTable;
+

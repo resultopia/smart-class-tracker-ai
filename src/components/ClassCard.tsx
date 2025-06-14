@@ -160,9 +160,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
               <ClassTodayAttendanceSummary classData={classData} />
             )}
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <StudentCount count={studentCount} />
-          </div>
           <OnlineModeToggle 
             classId={classData.id}
             checked={classData.isOnlineMode}
