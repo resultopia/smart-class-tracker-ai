@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,30 +30,55 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const [showAttendanceHistory, setShowAttendanceHistory] = useState(false);
   const [showCSVUploadDialog, setShowCSVUploadDialog] = useState(false);
   const [showEditParticipants, setShowEditParticipants] = useState(false);
+  const [dashboardResetFlag, setDashboardResetFlag] = useState(false);
   const { toast } = useToast();
 
-  // Refactored handlers for Supabase
+  // Handler to start/stop class and manage sessions
   const handleToggleStatus = async () => {
-    // Load current value
-    const { data, error } = await supabase
-      .from("classes")
-      .update({ is_active: !classData.isActive })
-      .eq("id", classData.id);
-
-    if (!error) {
-      onStatusChange();
-      toast({
-        title: classData.isActive ? "Class Stopped" : "Class Started",
-        description: classData.isActive
-          ? "Session ended and saved. Attendance reset."
-          : "Session started. Students can mark attendance.",
-      });
+    if (classData.isActive) {
+      // Stop class: set is_active false, end current session
+      const { error } = await supabase
+        .from("classes")
+        .update({ is_active: false })
+        .eq("id", classData.id);
+      if (!error) {
+        onStatusChange();
+        setDashboardResetFlag(true); // trigger dashboard reset
+        toast({
+          title: "Class Stopped",
+          description: "Session ended and saved. Attendance reset.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to stop class.",
+          variant: "destructive",
+        });
+      }
     } else {
-      toast({
-        title: "Error",
-        description: "Failed to change class status.",
-        variant: "destructive",
-      });
+      // Start new session on class start
+      const { error } = await supabase
+        .from("classes")
+        .update({ is_active: true })
+        .eq("id", classData.id);
+
+      // Also create a new session row for class start
+      // Session will be created on first attendance, so just mark as active here
+
+      if (!error) {
+        onStatusChange();
+        setDashboardResetFlag(false);
+        toast({
+          title: "Class Started",
+          description: "Session started. Students can mark attendance.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to start class.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -149,7 +175,11 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
           <DialogHeader>
             <DialogTitle>Attendance Dashboard - {classData.name}</DialogTitle>
           </DialogHeader>
-          <AttendanceDashboard classData={classData} />
+          <AttendanceDashboard 
+            classData={classData}
+            resetFlag={dashboardResetFlag}
+            onResetDone={() => setDashboardResetFlag(false)}
+          />
         </DialogContent>
       </Dialog>
 
@@ -180,3 +210,4 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
 };
 
 export default ClassCard;
+

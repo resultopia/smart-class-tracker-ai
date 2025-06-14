@@ -14,29 +14,56 @@ import type { StudentAttendanceStatus } from "./StudentAttendanceRow";
 
 interface AttendanceDashboardProps {
   classData: Class;
+  resetFlag?: boolean; // ← New: for parent to force reset after stopping
+  onResetDone?: () => void; // ← New: callback to unset resetFlag
 }
 
-const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
+const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDashboardProps) => {
   const [studentsStatus, setStudentsStatus] = useState<StudentAttendanceStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (classData) {
-      loadAttendanceData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classData]);
-
-  // Loads attendance status for today's session
+  // Loads attendance status for the CURRENT session only.
+  // Always reflects the active session. Past ones are not loaded.
   const loadAttendanceData = async () => {
     setLoading(true);
-    const attendanceStatusArr = await getStudentsAttendanceStatus(classData.id);
-    setStudentsStatus(attendanceStatusArr);
+    // Ensure we only get the active session's data if class is active;
+    // Otherwise, show all as absent (reset/ready for new session)
+    if (classData.isActive) {
+      const attendanceStatusArr = await getStudentsAttendanceStatus(classData.id);
+      setStudentsStatus(attendanceStatusArr);
+    } else {
+      // Not active, so reset everyone to absent (preparing for new session)
+      setStudentsStatus(
+        classData.studentIds.map((id) => ({
+          uuid: id,
+          userId: "",
+          name: "",
+          status: "absent",
+        }))
+      );
+    }
     setLoading(false);
   };
 
+  // On classData (and on reset), reload
+  useEffect(() => {
+    loadAttendanceData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classData]);
+
+  // On resetFlag set by parent (ClassCard) after stop, force reset
+  useEffect(() => {
+    if (resetFlag) {
+      loadAttendanceData();
+      // Notify parent reset is done to rearm flag for next time
+      if (onResetDone) onResetDone();
+    }
+    // eslint-disable-next-line
+  }, [resetFlag]);
+
   const toggleAttendance = async (uuid: string, currentStatus: "present" | "absent") => {
+    if (!classData.isActive) return; // Don't allow toggling if class is stopped!
     setLoading(true);
     const newStatus = currentStatus === "present" ? "absent" : "present";
     const success = await markAttendance(classData.id, uuid, newStatus);
@@ -114,7 +141,7 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
             variant="outline" 
             size="sm" 
             onClick={handleResetAttendance}
-            disabled={loading}
+            disabled={loading || !classData.isActive}
           >
             <RefreshCcw className="h-4 w-4 mr-2" />
             Reset All
