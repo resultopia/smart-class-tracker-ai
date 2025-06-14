@@ -1,4 +1,3 @@
-
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { Wifi } from "lucide-react";
 import DeleteClassButton from "./DeleteClassButton";
@@ -25,6 +24,9 @@ const ClassCardHeader = ({
 
   // Handler to delete class from Supabase
   const handleDeleteClass = async () => {
+    // Debug: Log IDs to help resolve mismatch
+    console.log("[DeleteClassButton] classData.teacherId:", classData.teacherId, "prop teacherId:", teacherId);
+    
     // Prevent deleting active classes
     if (classData.isActive) {
       toast({
@@ -39,7 +41,7 @@ const ClassCardHeader = ({
     if (classData.teacherId !== teacherId) {
       toast({
         title: "Permission Denied",
-        description: "Only the class teacher can delete this class.",
+        description: `Only the class teacher can delete this class. (Debug: Expected ${classData.teacherId}, got ${teacherId})`,
         variant: "destructive",
       });
       return;

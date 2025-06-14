@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import UserInfo from "@/components/UserInfo";
@@ -11,6 +12,9 @@ const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { classes, students, loadClasses, isUUID } = useTeacherClasses();
+  
+  // Helper: get teacherUUID from first class (they should match) or fallback
+  const teacherUUID = classes.length > 0 ? classes[0].teacherId : null;
 
   // Role checks
   if (!currentUser) {
@@ -51,7 +55,7 @@ const TeacherDashboard = () => {
           ) : (
             <ClassList
               classes={classes}
-              teacherId={currentUser?.userId || ""}
+              teacherId={teacherUUID || currentUser?.userId || ""} {/* Pass profile UUID, not userId */}
               onStatusChange={loadClasses}
             />
           )}
