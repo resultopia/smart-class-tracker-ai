@@ -23,6 +23,8 @@ import { CalendarIcon, FileDown, Filter, Clock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Class, AttendanceRecord, ClassSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import AttendanceSessionList from "./AttendanceSessionList";
+import AttendanceTable from "./AttendanceTable";
 
 interface AttendanceHistoryProps {
   classData: Class;
@@ -269,57 +271,13 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
         <CardContent>
           {/* Show sessions for selected date */}
           {selectedDate && dateSessions.length > 0 && (
-            <div className="mb-4">
-              <h4 className="font-medium mb-3">
-                Class sessions on {format(selectedDate, 'MMM dd, yyyy')}:
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {dateSessions.map((session, index) => (
-                  <div key={session.sessionId} className="flex items-center space-x-2">
-                    <Button
-                      variant={selectedSession?.sessionId === session.sessionId ? "default" : "outline"}
-                      className={cn(
-                        "justify-start h-auto p-3 flex-1",
-                        selectedSession?.sessionId === session.sessionId && "text-white"
-                      )}
-                      onClick={() => handleSessionSelect(session)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <div className="text-left">
-                          <div className="font-medium">Class {index + 1}</div>
-                          <div className={cn(
-                            "text-xs",
-                            selectedSession?.sessionId === session.sessionId 
-                              ? "text-white" 
-                              : "text-muted-foreground"
-                          )}>
-                            {format(new Date(session.startTime), 'HH:mm')} - {
-                              session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
-                            }
-                          </div>
-                          <div className={cn(
-                            "text-xs",
-                            selectedSession?.sessionId === session.sessionId 
-                              ? "text-white" 
-                              : "text-muted-foreground"
-                          )}>
-                            {session.attendanceRecords.length} records
-                          </div>
-                        </div>
-                      </div>
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => deleteSession(session.sessionId)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <AttendanceSessionList
+              dateSessions={dateSessions}
+              selectedSession={selectedSession}
+              onSessionSelect={handleSessionSelect}
+              onDeleteSession={deleteSession}
+              selectedDate={selectedDate}
+            />
           )}
 
           {filteredRecords.length === 0 ? (
@@ -332,55 +290,11 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
               }
             </div>
           ) : (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Status</TableHead>
-                    {selectedSession && <TableHead>Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRecords.map((record, index) => {
-                    const student = getUserById(record.studentId);
-                    const recordDate = new Date(record.timestamp);
-                    const currentStatus = record.status || "present";
-                    return (
-                      <TableRow key={index}>
-                        <TableCell>{record.studentId}</TableCell>
-                        <TableCell>{student?.name || "Unknown"}</TableCell>
-                        <TableCell>{recordDate.toLocaleDateString()}</TableCell>
-                        <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            currentStatus === "present" 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                            {currentStatus}
-                          </span>
-                        </TableCell>
-                        {selectedSession && (
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleAttendanceStatus(record.studentId, currentStatus)}
-                            >
-                              Mark {currentStatus === "present" ? "Absent" : "Present"}
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <AttendanceTable
+              filteredRecords={filteredRecords}
+              selectedSession={selectedSession}
+              toggleAttendanceStatus={toggleAttendanceStatus}
+            />
           )}
         </CardContent>
       </Card>
