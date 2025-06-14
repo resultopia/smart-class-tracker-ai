@@ -20,68 +20,76 @@ export function useAttendanceSession(
   const lastSessionIdRef = useRef<string | null>(null);
   const prevActiveRef = useRef<boolean>(classData.isActive);
 
+  // Helper: Initialize all students as absent for a fresh list
   const initializeAllAbsent = useCallback(async () => {
     const profiles = await api.fetchProfiles(classData.id);
     setStudentsStatus(mapProfilesToStudentsStatus(profiles, "absent"));
   }, [classData.id, setStudentsStatus]);
 
-  const loadAttendanceData = useCallback(
-    async () => {
-      setLoading(true);
-      if (classData.isActive) {
-        let sessionId = lastSessionIdRef.current;
-        if (!sessionId) {
-          sessionId = await api.fetchLatestSessionId(classData.id);
-          if (sessionId) lastSessionIdRef.current = sessionId;
-        }
-        if (sessionId) {
-          const [records, profiles] = await Promise.all([
-            api.fetchAttendanceRecords(classData.id, sessionId),
-            api.fetchProfiles(classData.id),
-          ]);
-          if (!records || records.length === 0) {
-            setStudentsStatus(mapProfilesToStudentsStatus(profiles, "absent"));
-          } else {
-            setStudentsStatus(mergeAttendanceWithProfiles(records, profiles ?? []));
-          }
+  // Loads current attendance for a given session
+  const loadAttendanceData = useCallback(async () => {
+    setLoading(true);
+    let sessionId = lastSessionIdRef.current;
+
+    if (classData.isActive) {
+      // Always use the last created session for the active class
+      if (!sessionId) {
+        sessionId = await api.fetchLatestSessionId(classData.id);
+        if (sessionId) lastSessionIdRef.current = sessionId;
+      }
+
+      if (sessionId) {
+        const [records, profiles] = await Promise.all([
+          api.fetchAttendanceRecords(classData.id, sessionId),
+          api.fetchProfiles(classData.id),
+        ]);
+        if (!records || records.length === 0) {
+          setStudentsStatus(mapProfilesToStudentsStatus(profiles, "absent"));
         } else {
-          await initializeAllAbsent();
+          setStudentsStatus(mergeAttendanceWithProfiles(records, profiles ?? []));
         }
       } else {
-        lastSessionIdRef.current = null;
-        const profiles = await api.fetchProfiles(classData.id);
-        const studentIds = classData.studentIds || [];
-        setStudentsStatus(
-          (studentIds ?? []).map((id) => ({
-            uuid: id,
-            userId: profiles?.find((p) => p.id === id)?.user_id || id,
-            name: profiles?.find((p) => p.id === id)?.name || "",
-            status: null,
-          }))
-        );
+        await initializeAllAbsent();
       }
-      setLoading(false);
-    },
-    [classData, setStudentsStatus, initializeAllAbsent]
-  );
+    } else {
+      // Class inactive: blank the session id
+      lastSessionIdRef.current = null;
+      const profiles = await api.fetchProfiles(classData.id);
+      const studentIds = classData.studentIds || [];
+      setStudentsStatus(
+        (studentIds ?? []).map((id) => ({
+          uuid: id,
+          userId: profiles?.find((p) => p.id === id)?.user_id || id,
+          name: profiles?.find((p) => p.id === id)?.name || "",
+          status: null,
+        }))
+      );
+    }
+    setLoading(false);
+  }, [classData, setStudentsStatus, initializeAllAbsent]);
 
-  // EFFECT: When class active status changes, handle session creation
+  // EFFECT: Handle class start/stop state instead of relying on ambiguous previous sessions
   useEffect(() => {
     const wasActive = prevActiveRef.current;
     const isActive = classData.isActive;
     prevActiveRef.current = isActive;
 
     if (isActive && !wasActive) {
-      // Class was started: Always force-create a new session and reset dashboard to that session
+      // Always force-create a NEW session in Supabase and reset dashboard to that session only.
       (async () => {
         setLoading(true);
+        // Always create a new session in Supabase, never reuse!
         const newSession = await api.forceCreateSession(classData.id);
-        lastSessionIdRef.current = newSession?.id || null;
+        if (newSession?.id) {
+          lastSessionIdRef.current = newSession.id;
+        } else {
+          lastSessionIdRef.current = null;
+        }
         await initializeAllAbsent();
         setLoading(false);
       })();
     } else if (!isActive && wasActive) {
-      // Class was stopped, close out open session & clear
+      // Class stopped: end latest session and blank dashboard
       (async () => {
         setLoading(true);
         await api.endOpenSession(classData.id);
@@ -91,6 +99,7 @@ export function useAttendanceSession(
         setLoading(false);
       })();
     } else {
+      // Normal load (not active state change): always load for current session
       loadAttendanceData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,16 +113,16 @@ export function useAttendanceSession(
     }
   }, [resetFlag, loadAttendanceData, onResetDone]);
 
-  // Mutations
+  // Mark present/absent for the current session ONLY
   const toggleAttendance = async (
     uuid: string,
     currentStatus: "present" | "absent"
   ) => {
-    if (!classData.isActive) return;
+    if (!classData.isActive) return; // Safety: Only allow during active class
     setLoading(true);
+
     let sessionId = lastSessionIdRef.current;
     if (!sessionId) {
-      // Defensive: Use latest, but by logic there should always be a new session after start
       sessionId = await api.fetchLatestSessionId(classData.id);
       if (sessionId) lastSessionIdRef.current = sessionId;
     }
@@ -137,10 +146,12 @@ export function useAttendanceSession(
     setLoading(false);
   };
 
+  // Reset all records for the current session ONLY (leave other sessions/history alone)
   const resetAttendance = async () => {
     setLoading(true);
     let sessionId = lastSessionIdRef.current;
     if (!sessionId) {
+      // Always look for current, but should exist since start always .forceCreateSession
       sessionId = await api.fetchLatestSessionId(classData.id);
       if (sessionId) lastSessionIdRef.current = sessionId;
     }
@@ -163,6 +174,7 @@ export function useAttendanceSession(
     setLoading(false);
   };
 
+  // Attendance table export: ONLY export current dashboard session, not history
   const exportToCSV = () => {
     const headers = ["student_uuid", "username", "student_name", "attendance_status"];
     const csvData = studentsStatus.map((student) => [
@@ -200,4 +212,3 @@ export function useAttendanceSession(
     exportToCSV,
   };
 }
-
