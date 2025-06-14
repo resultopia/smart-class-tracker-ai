@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
@@ -47,21 +46,36 @@ const TeacherDashboard = () => {
 
     // Load students from Supabase
     const loadStudents = async () => {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "student");
-      if (profiles) {
-        // Filter to only those with real UUID user_id
-        const validProfiles = profiles.filter((s: any) =>
-          isUUID(String(s.user_id))
-        );
-        setStudents(validProfiles);
-        console.log("Loaded students:", validProfiles);
+      try {
+        console.log("Attempting to load students from Supabase...");
+        const { data: profiles, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("role", "student");
+        if (error) {
+          console.error("Error querying students from Supabase:", error.message);
+          toast({
+            title: "Error Loading Students",
+            description: error.message,
+            variant: "destructive",
+          });
+          setStudents([]);
+        } else if (!profiles || profiles.length === 0) {
+          console.warn("[Supabase] No student profiles found in database.");
+          setStudents([]);
+        } else {
+          // Filter to only those with real UUID user_id
+          const validProfiles = profiles.filter((s: any) => isUUID(String(s.user_id)));
+          setStudents(validProfiles);
+          console.log("Loaded students from Supabase:", validProfiles);
+        }
+      } catch (e) {
+        console.error("Unexpected error while loading students:", e);
+        setStudents([]);
       }
     };
     loadStudents();
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, toast]);
 
   const loadClasses = async () => {
     if (!currentUser) return;
