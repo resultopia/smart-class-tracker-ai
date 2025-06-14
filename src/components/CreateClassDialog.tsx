@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,17 +50,15 @@ const CreateClassDialog = ({
     console.log("[CreateClassDialog] Students passed in:", students);
   }
 
-  // Defensive: Map student objects to {id, name} with fallbacks
+  // Map student objects to {id, name} using user_id (not UUID filtering)
   const mappedStudents = Array.isArray(students)
     ? students
         .map((student) => {
-          // Try all likely property keys, fallback to null if missing
           const studentId = student.user_id || student.userId || student.id || null;
           const studentName =
             student.name ||
             student.username ||
             (studentId ? String(studentId).slice(0, 8) : "Unnamed Student");
-          // Don't render row unless studentId exists
           if (!studentId) return null;
           return { id: studentId, name: studentName };
         })
@@ -190,4 +187,3 @@ const CreateClassDialog = ({
 };
 
 export default CreateClassDialog;
-

@@ -64,10 +64,9 @@ const TeacherDashboard = () => {
           console.warn("[Supabase] No student profiles found in database.");
           setStudents([]);
         } else {
-          // Filter to only those with real UUID user_id
-          const validProfiles = profiles.filter((s: any) => isUUID(String(s.user_id)));
-          setStudents(validProfiles);
-          console.log("Loaded students from Supabase:", validProfiles);
+          // Do NOT filter to UUIDs, use all results
+          setStudents(profiles);
+          console.log("Loaded students from Supabase:", profiles);
         }
       } catch (e) {
         console.error("Unexpected error while loading students:", e);
