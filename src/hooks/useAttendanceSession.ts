@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
@@ -124,11 +123,26 @@ export function useAttendanceSession(
     let sessionId = lastSessionIdRef.current;
     if (!sessionId) {
       sessionId = await api.fetchLatestSessionId(classData.id);
-      if (sessionId) lastSessionIdRef.current = sessionId;
+      if (!sessionId) {
+        // If still null, force create a new one
+        const newSession = await api.forceCreateSession(classData.id);
+        if (newSession?.id) {
+          sessionId = newSession.id;
+          lastSessionIdRef.current = sessionId;
+        }
+      } else {
+        lastSessionIdRef.current = sessionId;
+      }
     }
+
     if (sessionId) {
       const newStatus = currentStatus === "present" ? "absent" : "present";
-      const { error } = await api.toggleAttendanceRecord(classData.id, sessionId, uuid, newStatus);
+      const { error } = await api.toggleAttendanceRecord(
+        classData.id,
+        sessionId,
+        uuid,
+        newStatus
+      );
       if (error) {
         toast({
           title: "Error",
@@ -142,6 +156,12 @@ export function useAttendanceSession(
           description: `Student marked as ${newStatus}.`,
         });
       }
+    } else {
+      toast({
+        title: "Error",
+        description: "No active session found or created for attendance.",
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
