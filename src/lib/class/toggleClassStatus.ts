@@ -26,7 +26,7 @@ export const toggleClassStatus = (classId: string, teacherId: string) => {
       c.id === classId 
         ? { 
             ...c, 
-            isActive: false, 
+            isActive: null, // use null for inactive
             attendanceRecords: [], // Reset current attendance
             sessions: [...c.sessions, currentSession] // Add to sessions history
           } 
@@ -35,14 +35,14 @@ export const toggleClassStatus = (classId: string, teacherId: string) => {
   } else {
     // Starting the class - deactivate other classes and reset attendance
     classes = classes.map((c) => 
-      c.teacherId === teacherId ? { ...c, isActive: false } : c
+      c.teacherId === teacherId ? { ...c, isActive: null } : c // deactivate all
     );
     
     classes = classes.map((c) => 
       c.id === classId 
         ? { 
             ...c, 
-            isActive: true, 
+            isActive: `session_${Date.now()}`, // string sessionId for active
             attendanceRecords: [] // Start with fresh attendance
           } 
         : c

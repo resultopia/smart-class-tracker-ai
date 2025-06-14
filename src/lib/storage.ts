@@ -15,7 +15,7 @@ const defaultClasses: Class[] = [
     name: "Introduction to Computer Science",
     teacherId: "teacher1",
     studentIds: ["student1", "student2"],
-    isActive: false,
+    isActive: null, // inactive by default
     isOnlineMode: false,
     attendanceRecords: [],
     sessions: [],

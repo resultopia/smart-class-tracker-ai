@@ -13,7 +13,7 @@ export const createClass = (newClass: Omit<Class, "id" | "isActive" | "attendanc
     name: newClass.name,
     teacherId: newClass.teacherId,
     studentIds: newClass.studentIds,
-    isActive: false,
+    isActive: null, // now string | null: inactive by default
     isOnlineMode: false,
     attendanceRecords: [],
     sessions: [],

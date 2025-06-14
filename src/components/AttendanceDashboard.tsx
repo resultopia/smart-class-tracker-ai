@@ -23,18 +23,21 @@ const AttendanceDashboard = ({
     exportToCSV,
   } = useAttendanceSession(classData, resetFlag, onResetDone);
 
+  // Convert sessionId to boolean for activation/deactivation logic
+  const isActive = !!classData.isActive;
+
   return (
     <div className="space-y-4">
       <AttendanceHeader
         onResetAttendance={resetAttendance}
         onExportCSV={exportToCSV}
         loading={loading}
-        isClassActive={classData.isActive}
+        isClassActive={isActive}
       />
       <AttendanceSessionPanel
         studentsStatus={studentsStatus}
         onToggleAttendance={toggleAttendance}
-        isClassActive={classData.isActive}
+        isClassActive={isActive}
         loading={loading}
       />
     </div>

@@ -18,7 +18,7 @@ const ClassCardHeader = ({ classData, onDelete, onEditParticipants }: ClassCardH
       <CardTitle className="text-lg font-medium flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span>{classData.name}</span>
-          <DeleteClassButton onDelete={onDelete} disabled={classData.isActive} />
+          <DeleteClassButton onDelete={onDelete} disabled={!!classData.isActive} />
         </div>
         {classData.isOnlineMode && (
           <div className="flex items-center text-blue-600" data-testid="online-mode">
