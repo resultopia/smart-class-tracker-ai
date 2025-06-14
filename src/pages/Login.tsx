@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Lock, Shield, User } from "lucide-react";
+import { Calendar, Lock, User } from "lucide-react";
 import ForgotPasswordDialog from "@/components/ForgotPasswordDialog";
 import { useAuth } from "@/lib/auth-context";
 import { authenticateUser } from "@/lib/userService";
@@ -14,7 +13,6 @@ import { authenticateUser } from "@/lib/userService";
 const Login = () => {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"student" | "teacher" | "admin">("student");
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -31,7 +29,7 @@ const Login = () => {
       } else if (currentUser.role === "student") {
         navigate("/student-attendance");
       } else if (currentUser.role === "admin") {
-        navigate("/admin-login");
+        navigate("/register");
       }
     }
   }, [currentUser, navigate]);
@@ -41,7 +39,7 @@ const Login = () => {
     setError(null);
     setIsLoading(true);
 
-    const user = await authenticateUser(userId, password); // async!
+    const user = await authenticateUser(userId, password);
 
     if (user) {
       login(user);
@@ -88,31 +86,6 @@ const Login = () => {
 
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Role Selection */}
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold text-gray-700">
-                  Sign in as
-                </Label>
-                <RadioGroup
-                  value={role}
-                  onValueChange={(value) => setRole(value as typeof role)}
-                  className="flex space-x-6"
-                >
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
-                    <RadioGroupItem value="student" id="student" />
-                    <Label htmlFor="student" className="cursor-pointer font-medium">Student</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
-                    <RadioGroupItem value="teacher" id="teacher" />
-                    <Label htmlFor="teacher" className="cursor-pointer font-medium">Teacher</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
-                    <RadioGroupItem value="admin" id="admin" />
-                    <Label htmlFor="admin" className="cursor-pointer font-medium">Admin</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
               {/* Username Input */}
               <div className="space-y-2">
                 <Label htmlFor="userId" className="text-sm font-semibold text-gray-700">Username</Label>
@@ -180,7 +153,6 @@ const Login = () => {
                 )}
               </Button>
             </form>
-
             {/* Forgot Password Link */}
             <div className="text-center">
               <button
@@ -191,18 +163,7 @@ const Login = () => {
               </button>
             </div>
           </CardContent>
-
           <CardFooter className="flex flex-col space-y-4 pt-4">
-            {/* Admin Access */}
-            <Button
-              variant="outline"
-              onClick={() => navigate("/admin-login")}
-              className="w-full h-11 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 group"
-            >
-              <Shield className="h-4 w-4 mr-2 group-hover:text-blue-600 transition-colors" />
-              <span className="group-hover:text-blue-600 transition-colors">Administrator Access</span>
-            </Button>
-
             {/* Security Badge */}
             <div className="text-center text-xs text-gray-500">
               🔒 Your data is protected with enterprise-grade security

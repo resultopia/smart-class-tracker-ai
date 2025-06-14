@@ -7,7 +7,6 @@ import Login from "./pages/Login";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentAttendance from "./pages/StudentAttendance";
 import Register from "./pages/Register";
-import AdminLogin from "./pages/AdminLogin";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 
 const queryClient = new QueryClient();
@@ -61,7 +60,6 @@ const AppRoutes = () => {
         }
       />
       <Route path="/register" element={<Register />} />
-      <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
