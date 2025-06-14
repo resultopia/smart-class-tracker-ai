@@ -9,7 +9,173 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attendance_records: {
+        Row: {
+          class_id: string
+          id: string
+          session_id: string | null
+          status: string | null
+          student_id: string
+          timestamp: string
+        }
+        Insert: {
+          class_id: string
+          id?: string
+          session_id?: string | null
+          status?: string | null
+          student_id: string
+          timestamp?: string
+        }
+        Update: {
+          class_id?: string
+          id?: string
+          session_id?: string | null
+          status?: string | null
+          student_id?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_sessions: {
+        Row: {
+          class_id: string
+          created_at: string
+          end_time: string | null
+          id: string
+          start_time: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          start_time: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_sessions_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          id: string
+          is_active: boolean
+          is_online_mode: boolean
+          name: string
+          teacher_id: string | null
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          is_online_mode?: boolean
+          name: string
+          teacher_id?: string | null
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          is_online_mode?: boolean
+          name?: string
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes_students: {
+        Row: {
+          class_id: string | null
+          student_id: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_students_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          id: string
+          name: string
+          phone_number: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id: string
+          name: string
+          phone_number?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          phone_number?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,8 @@ import StudentAttendance from "./pages/StudentAttendance";
 import Register from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 import { AuthProvider, useAuth } from "./lib/auth-context";
+import { SupabaseAuthProvider } from "./lib/supabase-auth";
+import AuthPage from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -42,16 +43,8 @@ const ProtectedRoute = ({
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/admin-login" element={<AdminLogin />} />
-      <Route 
-        path="/register" 
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <Register />
-          </ProtectedRoute>
-        } 
-      />
+      <Route path="/" element={<AuthPage />} />
+      <Route path="/auth" element={<AuthPage />} />
       <Route 
         path="/teacher-dashboard" 
         element={
@@ -76,13 +69,13 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <AuthProvider>
+      <SupabaseAuthProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <AppRoutes />
         </TooltipProvider>
-      </AuthProvider>
+      </SupabaseAuthProvider>
     </BrowserRouter>
   </QueryClientProvider>
 );
