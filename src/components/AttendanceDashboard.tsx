@@ -36,19 +36,23 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
 
   useEffect(() => {
     if (classData) {
-      loadAttendanceData();
+      // Use an IIFE to handle async useEffect
+      (async () => {
+        await loadAttendanceData();
+      })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classData]);
 
-  const loadAttendanceData = () => {
-    const statusData = getStudentsAttendanceStatus(classData.id);
+  const loadAttendanceData = async () => {
+    const statusData = await getStudentsAttendanceStatus(classData.id);
     setStudentsStatus(statusData);
   };
 
   const toggleAttendance = (studentId: string, currentStatus: "present" | "absent") => {
     const newStatus = currentStatus === "present" ? "absent" : "present";
     const success = markAttendance(classData.id, studentId, newStatus);
-    
+
     if (success) {
       loadAttendanceData();
       toast({

@@ -185,25 +185,29 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     });
   };
 
-  const exportFilteredCSV = () => {
+  const exportFilteredCSV = async () => {
     const headers = ['student_id', 'student_name', 'date', 'time', 'status'];
-    const csvData = filteredRecords.map(record => {
-      const student = getUserById(record.studentId);
+    // Await all name resolutions
+    const csvData: string[][] = [];
+    for (const record of filteredRecords) {
+      const studentPromise = getUserById(record.studentId);
+      // Await the resolved user
+      const student = await studentPromise;
       const recordDate = new Date(record.timestamp);
-      return [
+      csvData.push([
         record.studentId,
         student?.name || "Unknown",
         recordDate.toLocaleDateString(),
         recordDate.toLocaleTimeString(),
         record.status || "present"
-      ];
-    });
-    
+      ]);
+    }
+
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => row.join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'all-dates';
@@ -215,7 +219,7 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast({
       title: "Export Successful",
       description: `Attendance data exported successfully.`
