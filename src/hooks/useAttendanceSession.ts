@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Class } from "@/lib/types";
@@ -46,16 +47,38 @@ export function useAttendanceSession(
       }
     } else {
       // Class is not active - show all with status null
+      // Fix: always try to show the correct students even if profiles are missing!
       const profiles = await api.fetchProfiles(classData.id);
       const studentIds = classData.studentIds || [];
-      setStudentsStatus(
-        (studentIds ?? []).map((id) => ({
-          uuid: id,
-          userId: profiles?.find((p) => p.id === id)?.user_id || id,
-          name: profiles?.find((p) => p.id === id)?.name || "",
-          status: null,
-        }))
-      );
+      // If profiles could not be fetched OR returned empty, fallback to showing studentIds as userId
+      const statusList: StudentAttendanceStatus[] = [];
+      if (profiles && profiles.length) {
+        for (const id of studentIds) {
+          const profile = profiles.find((p) => p.id === id);
+          statusList.push({
+            uuid: id,
+            userId: profile?.user_id || id,
+            name: profile?.name || id,
+            status: null,
+          });
+        }
+      } else {
+        // profiles not found, fallback to plain list from classData.studentIds
+        for (const id of studentIds) {
+          statusList.push({
+            uuid: id,
+            userId: id,
+            name: id,
+            status: null,
+          });
+        }
+      }
+      // Add debug log if loaded nothing but class claims students exist:
+      if (studentIds.length > 0 && statusList.length === 0) {
+        // eslint-disable-next-line no-console
+        console.log("[AttendanceDashboard]: StudentIds present but no matching profiles. studentIds:", studentIds, "profiles:", profiles);
+      }
+      setStudentsStatus(statusList);
     }
     setLoading(false);
   }, [
@@ -199,3 +222,6 @@ export function useAttendanceSession(
     exportToCSV,
   };
 }
+
+// NOTE: This file is getting quite long! Please consider asking me to refactor it for better maintainability.
+
