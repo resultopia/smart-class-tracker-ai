@@ -56,11 +56,11 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
             />
           )}
 
-          {filteredRecords.length === 0 ? (
+          {!selectedSession ? (
             <div className="text-center py-8 text-muted-foreground">
-              {selectedDate && dateSessions.length > 0 
+              {selectedDate && dateSessions.length > 0
                 ? "Select a class session above to view attendance records."
-                : selectedDate 
+                : selectedDate
                   ? `No attendance records found for ${format(selectedDate, 'MMM dd, yyyy')}.`
                   : "No attendance records found for the selected criteria."
               }

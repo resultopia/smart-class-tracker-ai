@@ -44,15 +44,10 @@ const AttendanceSessions = ({
                   ? "text-white" 
                   : "text-muted-foreground"
               )}>
-                {format(new Date(session.startTime), 'HH:mm')} - {
-                  session.endTime
-                    ? format(new Date(session.endTime), 'HH:mm')
-                    : 'Ended'
-                }
+                {format(new Date(session.startTime), 'HH:mm')} - {session.endTime ? format(new Date(session.endTime), 'HH:mm') : ""}
               </div>
             </div>
           </div>
-          {/* Delete button inside session button; stop propagation to prevent selecting */}
           <Button
             variant="destructive"
             size="icon"
