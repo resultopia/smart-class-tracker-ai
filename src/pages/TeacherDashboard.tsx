@@ -1,189 +1,33 @@
-import { useEffect, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
 import UserInfo from "@/components/UserInfo";
-import CreateClassDialog from "@/components/CreateClassDialog";
 import ClassList from "@/components/ClassList";
-import { Class } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { useTeacherClasses } from "@/hooks/useTeacherClasses";
+import ClassCreationSection from "@/components/ClassCreationSection";
 
 const TeacherDashboard = () => {
   const { currentUser } = useAuth();
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [className, setClassName] = useState("");
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [csvStudents, setCsvStudents] = useState<string[]>([]);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [students, setStudents] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { classes, students, loadClasses, isUUID } = useTeacherClasses();
 
-  // Helper: check for valid UUIDs (rudimentary UUID v4 check)
-  const isUUID = (id: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
-      id
-    );
+  // Role checks
+  if (!currentUser) {
+    navigate("/");
+    return null;
+  }
 
-  useEffect(() => {
-    if (!currentUser) {
-      navigate("/");
-      return;
-    }
-
-    if (currentUser.role !== "teacher") {
-      toast({
-        title: "Access Denied",
-        description: "Only teachers can access this page.",
-        variant: "destructive",
-      });
-      navigate("/");
-      return;
-    }
-
-    loadClasses();
-
-    // Load students from Supabase
-    const loadStudents = async () => {
-      try {
-        console.log("Attempting to load students from Supabase...");
-        const { data: profiles, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("role", "student");
-        if (error) {
-          console.error("Error querying students from Supabase:", error.message);
-          toast({
-            title: "Error Loading Students",
-            description: error.message,
-            variant: "destructive",
-          });
-          setStudents([]);
-        } else if (!profiles || profiles.length === 0) {
-          console.warn("[Supabase] No student profiles found in database.");
-          setStudents([]);
-        } else {
-          // Do NOT filter to UUIDs, use all results
-          setStudents(profiles);
-          console.log("Loaded students from Supabase:", profiles);
-        }
-      } catch (e) {
-        console.error("Unexpected error while loading students:", e);
-        setStudents([]);
-      }
-    };
-    loadStudents();
-  }, [currentUser, navigate, toast]);
-
-  const loadClasses = async () => {
-    if (!currentUser) return;
-    const { data: classRows } = await supabase
-      .from("classes")
-      .select("*")
-      .eq("teacher_id", currentUser.userId);
-    if (classRows) {
-      const classList: Class[] = [];
-      for (const cls of classRows) {
-        const { data: joined } = await supabase
-          .from("classes_students")
-          .select("student_id")
-          .eq("class_id", cls.id);
-        const studentIds = joined ? joined.map((j) => j.student_id) : [];
-        classList.push({
-          id: cls.id,
-          name: cls.name,
-          teacherId: cls.teacher_id,
-          studentIds,
-          isActive: cls.is_active,
-          isOnlineMode: cls.is_online_mode,
-          attendanceRecords: [],
-          sessions: [],
-        });
-      }
-      setClasses(classList);
-    }
-  };
-
-  const handleCreateClass = async () => {
-    if (!currentUser) return;
-    console.log("Creating class. Current user:", currentUser);
-
-    if (!className.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a class name.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Allow ALL student ids (removed UUID filter)
-    const allStudents = [...selectedStudents, ...csvStudents];
-    console.log("All students to add (all IDs, no UUID filter):", allStudents);
-    console.log("Class name:", className);
-
-    if (allStudents.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one student or upload a CSV file.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check teacher id is uuid (keep this check)
-    const isUUID = (id: string) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
-        id
-      );
-    if (!isUUID(currentUser.userId)) {
-      toast({
-        title: "Error",
-        description: "Current teacher ID is invalid. Cannot create class.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { data: classData, error } = await supabase
-      .from("classes")
-      .insert([
-        {
-          name: className,
-          teacher_id: currentUser.userId,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error || !classData) {
-      console.error("Supabase error creating class:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create class in database.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const studentJoins = allStudents.map((studentId) => ({
-      class_id: classData.id,
-      student_id: studentId,
-    }));
-    await supabase.from("classes_students").insert(studentJoins);
-
+  if (currentUser.role !== "teacher") {
     toast({
-      title: "Success",
-      description: `New class created successfully with ${allStudents.length} students.`,
+      title: "Access Denied",
+      description: "Only teachers can access this page.",
+      variant: "destructive",
     });
-
-    setClassName("");
-    setSelectedStudents([]);
-    setCsvStudents([]);
-    setCreateDialogOpen(false);
-    loadClasses();
-  };
+    navigate("/");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
@@ -195,17 +39,10 @@ const TeacherDashboard = () => {
         <div className="bg-white rounded-lg p-6 mb-8 shadow">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-medium">Your Classes</h2>
-            <CreateClassDialog
-              open={createDialogOpen}
-              setOpen={setCreateDialogOpen}
+            <ClassCreationSection
               students={students}
-              selectedStudents={selectedStudents}
-              setSelectedStudents={setSelectedStudents}
-              csvStudents={csvStudents}
-              setCsvStudents={setCsvStudents}
-              className={className}
-              setClassName={setClassName}
-              onCreate={handleCreateClass}
+              loadClasses={loadClasses}
+              isUUID={isUUID}
             />
           </div>
           {classes.length === 0 ? (
@@ -213,7 +50,7 @@ const TeacherDashboard = () => {
               No classes created yet. Create your first class to get started.
             </div>
           ) : (
-            <ClassList 
+            <ClassList
               classes={classes}
               teacherId={currentUser?.userId || ""}
               onStatusChange={loadClasses}
