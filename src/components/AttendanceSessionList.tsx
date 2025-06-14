@@ -26,48 +26,54 @@ const AttendanceSessionList = ({
     </h4>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
       {dateSessions.map((session, index) => (
-        <div key={session.sessionId} className="flex items-center space-x-2">
-          <Button
-            variant={selectedSession?.sessionId === session.sessionId ? "default" : "outline"}
-            className={cn(
-              "justify-start h-auto p-3 flex-1",
-              selectedSession?.sessionId === session.sessionId && "text-white"
-            )}
-            onClick={() => onSessionSelect(session)}
-          >
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4" />
-              <div className="text-left">
-                <div className="font-medium">Class {index + 1}</div>
-                <div className={cn(
-                  "text-xs",
-                  selectedSession?.sessionId === session.sessionId 
-                    ? "text-white" 
-                    : "text-muted-foreground"
-                )}>
-                  {format(new Date(session.startTime), 'HH:mm')} - {
-                    session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
-                  }
-                </div>
-                <div className={cn(
-                  "text-xs",
-                  selectedSession?.sessionId === session.sessionId 
-                    ? "text-white" 
-                    : "text-muted-foreground"
-                )}>
-                  {session.attendanceRecords.length} records
-                </div>
+        <Button
+          key={session.sessionId}
+          variant={selectedSession?.sessionId === session.sessionId ? "default" : "outline"}
+          className={cn(
+            "justify-between h-auto p-3 flex-1 flex items-center group",
+            selectedSession?.sessionId === session.sessionId && "text-white"
+          )}
+          onClick={() => onSessionSelect(session)}
+        >
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4" />
+            <div className="text-left">
+              <div className="font-medium">Class {index + 1}</div>
+              <div className={cn(
+                "text-xs",
+                selectedSession?.sessionId === session.sessionId 
+                  ? "text-white" 
+                  : "text-muted-foreground"
+              )}>
+                {format(new Date(session.startTime), 'HH:mm')} - {
+                  session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
+                }
+              </div>
+              <div className={cn(
+                "text-xs",
+                selectedSession?.sessionId === session.sessionId 
+                  ? "text-white" 
+                  : "text-muted-foreground"
+              )}>
+                {session.attendanceRecords.length} records
               </div>
             </div>
-          </Button>
+          </div>
+          {/* Delete button inside session button; stop propagation to prevent selecting */}
           <Button
             variant="destructive"
-            size="sm"
-            onClick={() => onDeleteSession(session.sessionId)}
+            size="icon"
+            className="ml-2 opacity-80 group-hover:opacity-100"
+            onClick={e => {
+              e.stopPropagation();
+              onDeleteSession(session.sessionId);
+            }}
+            tabIndex={-1}
+            type="button"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-        </div>
+        </Button>
       ))}
     </div>
   </div>
