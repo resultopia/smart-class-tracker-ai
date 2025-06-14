@@ -1,6 +1,6 @@
+import type { StudentAttendanceStatus } from "./StudentAttendanceRow";
 
 import AttendanceTable from "./AttendanceTable";
-import type { StudentAttendanceStatus } from "./StudentAttendanceRow";
 
 interface AttendanceSessionPanelProps {
   studentsStatus: StudentAttendanceStatus[];
@@ -30,5 +30,4 @@ const AttendanceSessionPanel = ({
     </>
   );
 };
-
 export default AttendanceSessionPanel;

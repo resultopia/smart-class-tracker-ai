@@ -1,8 +1,6 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import AttendanceSessionList from "./AttendanceSessionList";
-import AttendanceTable from "./AttendanceTable";
 import AttendanceHistoryHeader from "./AttendanceHistoryHeader";
 import AttendanceSessions from "./AttendanceSessions";
 import AttendanceRecordsTable from "./AttendanceRecordsTable";
