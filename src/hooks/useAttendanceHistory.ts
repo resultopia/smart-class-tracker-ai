@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -81,13 +80,14 @@ export function useAttendanceHistory(classData: Class) {
     const fetchUserNames = async () => {
       const ids = classData.studentIds;
       if (!ids.length) return;
+      // Fetch profiles, but map UUIDs to names (id field, not user_id)
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id,name")
-        .in("user_id", ids);
+        .select("id,name")
+        .in("id", ids);
       if (profiles) {
         const lookup = Object.fromEntries(
-          profiles.map((p: { user_id: string, name: string }) => [p.user_id, p.name])
+          profiles.map((p: { id: string, name: string }) => [p.id, p.name])
         );
         setUserLookup(lookup);
       }
@@ -137,6 +137,7 @@ export function useAttendanceHistory(classData: Class) {
     setDateSessions(dateSessions.filter((s) => s.sessionId !== sessionId));
   };
 
+  // Fix: Refetch records after toggling attendance!
   const toggleAttendanceStatus = async (studentId: string, currentStatus: "present" | "absent") => {
     if (!selectedSession) return;
     const newStatus = currentStatus === "present" ? "absent" : "present";
@@ -162,8 +163,24 @@ export function useAttendanceHistory(classData: Class) {
       title: "Attendance Updated",
       description: `Student marked as ${newStatus}.`,
     });
-    setSelectedSession({ ...selectedSession });
-    setFilteredRecords(getAllRecordsForSession(selectedSession));
+
+    // Refetch attendance for all records to update state
+    const { data: recordsRows } = await supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("class_id", classData.id);
+    const updatedAttendance = recordsRows?.map((row) => ({
+      studentId: row.student_id,
+      timestamp: new Date(row.timestamp),
+      status: row.status as "present" | "absent",
+      sessionId: row.session_id,
+    })) || [];
+    setAllRecords(updatedAttendance);
+
+    // Update filteredRecords for the current session:
+    setFilteredRecords(
+      updatedAttendance.filter(r => r.sessionId === selectedSession.sessionId)
+    );
   };
 
   // Export CSV
