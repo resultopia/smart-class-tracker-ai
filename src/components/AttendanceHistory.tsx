@@ -16,9 +16,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { 
   getClassAttendance, 
   getUserById,
+  saveClasses,
+  initializeData
 } from "@/lib/data";
 import { getClassSessionsForDate } from "@/lib/classService";
-import { CalendarIcon, FileDown, Filter, Clock } from "lucide-react";
+import { CalendarIcon, FileDown, Filter, Clock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Class, AttendanceRecord, ClassSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -70,6 +72,91 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const handleSessionSelect = (session: ClassSession) => {
     setSelectedSession(session);
     setFilteredRecords(session.attendanceRecords);
+  };
+
+  const deleteSession = (sessionId: string) => {
+    const refreshedData = initializeData();
+    const classes = refreshedData.classes;
+    
+    const updatedClasses = classes.map(cls => {
+      if (cls.id === classData.id) {
+        return {
+          ...cls,
+          sessions: cls.sessions.filter(session => session.sessionId !== sessionId)
+        };
+      }
+      return cls;
+    });
+    
+    saveClasses(updatedClasses);
+    
+    // Refresh the sessions for the selected date
+    if (selectedDate) {
+      const sessions = getClassSessionsForDate(classData.id, selectedDate);
+      setDateSessions(sessions);
+      if (selectedSession?.sessionId === sessionId) {
+        setSelectedSession(null);
+        setFilteredRecords([]);
+      }
+    }
+    
+    toast({
+      title: "Session Deleted",
+      description: "The class session has been deleted successfully."
+    });
+  };
+
+  const toggleAttendanceStatus = (studentId: string, currentStatus: "present" | "absent") => {
+    if (!selectedSession) return;
+    
+    const refreshedData = initializeData();
+    const classes = refreshedData.classes;
+    
+    const newStatus = currentStatus === "present" ? "absent" : "present";
+    
+    const updatedClasses = classes.map(cls => {
+      if (cls.id === classData.id) {
+        return {
+          ...cls,
+          sessions: cls.sessions.map(session => {
+            if (session.sessionId === selectedSession.sessionId) {
+              return {
+                ...session,
+                attendanceRecords: session.attendanceRecords.map(record => 
+                  record.studentId === studentId 
+                    ? { ...record, status: newStatus }
+                    : record
+                )
+              };
+            }
+            return session;
+          })
+        };
+      }
+      return cls;
+    });
+    
+    saveClasses(updatedClasses);
+    
+    // Update local state
+    const updatedRecords = filteredRecords.map(record => 
+      record.studentId === studentId 
+        ? { ...record, status: newStatus }
+        : record
+    );
+    setFilteredRecords(updatedRecords);
+    
+    // Update selected session
+    const updatedSession = {
+      ...selectedSession,
+      attendanceRecords: updatedRecords
+    };
+    setSelectedSession(updatedSession);
+    
+    toast({
+      title: "Attendance Updated",
+      description: `Student marked as ${newStatus}.`
+    });
   };
 
   const exportFilteredCSV = () => {
@@ -165,27 +252,48 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {dateSessions.map((session, index) => (
-                  <Button
-                    key={session.sessionId}
-                    variant={selectedSession?.sessionId === session.sessionId ? "default" : "outline"}
-                    className="justify-start h-auto p-3"
-                    onClick={() => handleSessionSelect(session)}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4" />
-                      <div className="text-left">
-                        <div className="font-medium">Class {index + 1}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(session.startTime), 'HH:mm')} - {
-                            session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
-                          }
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {session.attendanceRecords.length} records
+                  <div key={session.sessionId} className="flex items-center space-x-2">
+                    <Button
+                      variant={selectedSession?.sessionId === session.sessionId ? "default" : "outline"}
+                      className={cn(
+                        "justify-start h-auto p-3 flex-1",
+                        selectedSession?.sessionId === session.sessionId && "text-white"
+                      )}
+                      onClick={() => handleSessionSelect(session)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <div className="text-left">
+                          <div className="font-medium">Class {index + 1}</div>
+                          <div className={cn(
+                            "text-xs",
+                            selectedSession?.sessionId === session.sessionId 
+                              ? "text-white/80" 
+                              : "text-muted-foreground"
+                          )}>
+                            {format(new Date(session.startTime), 'HH:mm')} - {
+                              session.endTime ? format(new Date(session.endTime), 'HH:mm') : 'Ongoing'
+                            }
+                          </div>
+                          <div className={cn(
+                            "text-xs",
+                            selectedSession?.sessionId === session.sessionId 
+                              ? "text-white/80" 
+                              : "text-muted-foreground"
+                          )}>
+                            {session.attendanceRecords.length} records
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Button>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteSession(session.sessionId)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -210,12 +318,14 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
                     <TableHead>Date</TableHead>
                     <TableHead>Time</TableHead>
                     <TableHead>Status</TableHead>
+                    {selectedSession && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredRecords.map((record, index) => {
                     const student = getUserById(record.studentId);
                     const recordDate = new Date(record.timestamp);
+                    const currentStatus = record.status || "present";
                     return (
                       <TableRow key={index}>
                         <TableCell>{record.studentId}</TableCell>
@@ -224,13 +334,24 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
                         <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            (record.status || "present") === "present" 
+                            currentStatus === "present" 
                               ? "bg-green-100 text-green-800" 
                               : "bg-red-100 text-red-800"
                           }`}>
-                            {record.status || "present"}
+                            {currentStatus}
                           </span>
                         </TableCell>
+                        {selectedSession && (
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleAttendanceStatus(record.studentId, currentStatus)}
+                            >
+                              Mark {currentStatus === "present" ? "Absent" : "Present"}
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
