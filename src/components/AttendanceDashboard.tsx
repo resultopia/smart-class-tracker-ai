@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -29,43 +28,14 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classData]);
 
-  // Loads attendance and merges with class students: ensures all students in class appear
+  // Loads attendance status for today's session
   const loadAttendanceData = async () => {
     setLoading(true);
-    // 1. Get today's attendance status for class
     const attendanceStatusArr = await getStudentsAttendanceStatus(classData.id);
-    // 2. Fetch all student profiles in the class
-    const studentUuids = classData.studentIds;
-    let profilesLookup: Record<string, { user_id: string; name: string }> = {};
-    if (studentUuids.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, user_id, name")
-        .in("id", studentUuids);
-      if (profiles && Array.isArray(profiles)) {
-        profiles.forEach(row => {
-          profilesLookup[row.id] = { user_id: row.user_id, name: row.name };
-        });
-      }
-    }
-    // 3. Map each student in class to their attendance status (default: absent)
-    const statusMap: Record<string, "present" | "absent"> = {};
-    attendanceStatusArr.forEach(s => {
-      statusMap[s.userId] = s.status;
-    });
-
-    const allStudents: StudentAttendanceStatus[] = studentUuids.map(studentUuid => ({
-      uuid: studentUuid,
-      userId: profilesLookup[studentUuid]?.user_id || studentUuid,
-      name: profilesLookup[studentUuid]?.name || "",
-      status: statusMap[studentUuid] || "absent"
-    }));
-
-    setStudentsStatus(allStudents);
+    setStudentsStatus(attendanceStatusArr);
     setLoading(false);
   };
 
-  // Ensure markAttendance is awaited, and reload after change
   const toggleAttendance = async (uuid: string, currentStatus: "present" | "absent") => {
     setLoading(true);
     const newStatus = currentStatus === "present" ? "absent" : "present";
@@ -170,4 +140,3 @@ const AttendanceDashboard = ({ classData }: AttendanceDashboardProps) => {
   );
 };
 export default AttendanceDashboard;
-
