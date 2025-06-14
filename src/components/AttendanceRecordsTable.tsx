@@ -34,10 +34,18 @@ const AttendanceRecordsTable = ({
             const recordDate = new Date(record.timestamp);
             const currentStatus = record.status || "present";
             const isPresent = currentStatus === "present";
+            // new: attempt to extract userId from lookup, fallback to empty string.
+            // If userLookup contains mapping: { [id: string]: name }
+            // We do not have userId, but at least we always have record.studentId.
             return (
               <TableRow key={index}>
                 {/* Removed studentId cell */}
-                <TableCell>{userLookup[record.studentId] || "Loading..."}</TableCell>
+                <TableCell>
+                  {userLookup[record.studentId] || "Loading..."}
+                  <span className="text-muted-foreground text-xs ml-1">
+                    ({record.studentId})
+                  </span>
+                </TableCell>
                 <TableCell>{recordDate.toLocaleDateString()}</TableCell>
                 <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
                 <TableCell>

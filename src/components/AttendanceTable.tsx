@@ -27,7 +27,12 @@ const AttendanceTable = ({
         <tbody>
           {studentsStatus.map((student) => (
             <tr key={student.uuid} className="hover:bg-muted/50 transition">
-              <td className="px-5 py-4 font-medium">{student.name || student.userId}</td>
+              <td className="px-5 py-4 font-medium">
+                {student.name || student.userId}
+                <span className="text-muted-foreground text-xs ml-1">
+                  ({student.userId})
+                </span>
+              </td>
               <td className="px-5 py-4">
                 <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold
                   ${student.status === "present"
@@ -69,3 +74,4 @@ const AttendanceTable = ({
 };
 
 export default AttendanceTable;
+
