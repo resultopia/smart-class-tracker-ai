@@ -79,30 +79,31 @@ const CreateClassDialog = ({
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
                   {students.map((student) => (
                     <div 
-                      key={student.userId}
+                      key={student.user_id || student.userId}
                       className={`
                         flex items-center space-x-2 p-2 rounded
-                        ${selectedStudents.includes(student.userId) 
+                        ${selectedStudents.includes(student.user_id || student.userId) 
                           ? 'bg-primary/10 border border-primary' 
                           : 'border hover:bg-muted cursor-pointer'}
                       `}
                       onClick={() => {
-                        if (selectedStudents.includes(student.userId)) {
-                          setSelectedStudents(selectedStudents.filter(id => id !== student.userId));
+                        const id = student.user_id || student.userId;
+                        if (selectedStudents.includes(id)) {
+                          setSelectedStudents(selectedStudents.filter(sid => sid !== id));
                         } else {
-                          setSelectedStudents([...selectedStudents, student.userId]);
+                          setSelectedStudents([...selectedStudents, id]);
                         }
                       }}
                     >
                       <div className={`
                         h-5 w-5 flex items-center justify-center rounded-sm
-                        ${selectedStudents.includes(student.userId)
+                        ${selectedStudents.includes(student.user_id || student.userId)
                           ? 'bg-primary text-primary-foreground'
                           : 'border'}
                       `}>
-                        {selectedStudents.includes(student.userId) && <CheckIcon className="h-3 w-3" />}
+                        {selectedStudents.includes(student.user_id || student.userId) && <CheckIcon className="h-3 w-3" />}
                       </div>
-                      <span className="text-sm">{student.name} ({student.userId})</span>
+                      <span className="text-sm">{student.name} ({student.user_id || student.userId})</span>
                     </div>
                   ))}
                 </div>

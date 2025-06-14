@@ -21,6 +21,12 @@ const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Helper: check for valid UUIDs (rudimentary UUID v4 check)
+  const isUUID = (id: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      id
+    );
+
   useEffect(() => {
     if (!currentUser) {
       navigate("/");
@@ -45,7 +51,14 @@ const TeacherDashboard = () => {
         .from("profiles")
         .select("*")
         .eq("role", "student");
-      if (profiles) setStudents(profiles);
+      if (profiles) {
+        // Filter to only those with real UUID user_id
+        const validProfiles = profiles.filter((s: any) =>
+          isUUID(String(s.user_id))
+        );
+        setStudents(validProfiles);
+        console.log("Loaded students:", validProfiles);
+      }
     };
     loadStudents();
   }, [currentUser, navigate]);
@@ -63,7 +76,7 @@ const TeacherDashboard = () => {
           .from("classes_students")
           .select("student_id")
           .eq("class_id", cls.id);
-        const studentIds = joined ? joined.map(j => j.student_id) : [];
+        const studentIds = joined ? joined.map((j) => j.student_id) : [];
         classList.push({
           id: cls.id,
           name: cls.name,
@@ -81,6 +94,8 @@ const TeacherDashboard = () => {
 
   const handleCreateClass = async () => {
     if (!currentUser) return;
+    console.log("Creating class. Current user:", currentUser);
+
     if (!className.trim()) {
       toast({
         title: "Error",
@@ -90,11 +105,25 @@ const TeacherDashboard = () => {
       return;
     }
 
-    const allStudents = [...selectedStudents, ...csvStudents];
+    // Allow only student IDs that resemble UUIDs
+    const allStudents = [...selectedStudents, ...csvStudents].filter(isUUID);
+    console.log("All students to add (filtered uuids):", allStudents);
+    console.log("Class name:", className);
+
     if (allStudents.length === 0) {
       toast({
         title: "Error",
         description: "Please select at least one student or upload a CSV file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check teacher id is uuid
+    if (!isUUID(currentUser.userId)) {
+      toast({
+        title: "Error",
+        description: "Current teacher ID is invalid. Cannot create class.",
         variant: "destructive",
       });
       return;
@@ -112,6 +141,7 @@ const TeacherDashboard = () => {
       .single();
 
     if (error || !classData) {
+      console.error("Supabase error creating class:", error);
       toast({
         title: "Error",
         description: "Failed to create class in database.",
@@ -120,7 +150,7 @@ const TeacherDashboard = () => {
       return;
     }
 
-    const studentJoins = allStudents.map(studentId => ({
+    const studentJoins = allStudents.map((studentId) => ({
       class_id: classData.id,
       student_id: studentId,
     }));
