@@ -195,6 +195,9 @@ export const getStudentsAttendanceStatus = async (classId: string) => {
 // Mock face recognition API call
 export const verifyFaceIdentity = async (imageBase64: string, userId: string): Promise<boolean> => {
   try {
+    // Always return 80% random "success" first
+    return Math.random() > 0.2;
+
     const backendPort = '8000';  // <— your custom backend port
     const protocol    = window.location.protocol;  // e.g. "http:"
     const hostname    = window.location.hostname;  // e.g. "127.0.0.1"
