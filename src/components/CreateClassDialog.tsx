@@ -77,35 +77,49 @@ const CreateClassDialog = ({
               <div className="space-y-2">
                 <Label>Select Students Manually</Label>
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
-                  {students.map((student) => (
-                    <div 
-                      key={student.user_id || student.userId}
-                      className={`
-                        flex items-center space-x-2 p-2 rounded
-                        ${selectedStudents.includes(student.user_id || student.userId) 
-                          ? 'bg-primary/10 border border-primary' 
-                          : 'border hover:bg-muted cursor-pointer'}
-                      `}
-                      onClick={() => {
-                        const id = student.user_id || student.userId;
-                        if (selectedStudents.includes(id)) {
-                          setSelectedStudents(selectedStudents.filter(sid => sid !== id));
-                        } else {
-                          setSelectedStudents([...selectedStudents, id]);
-                        }
-                      }}
-                    >
-                      <div className={`
-                        h-5 w-5 flex items-center justify-center rounded-sm
-                        ${selectedStudents.includes(student.user_id || student.userId)
-                          ? 'bg-primary text-primary-foreground'
-                          : 'border'}
-                      `}>
-                        {selectedStudents.includes(student.user_id || student.userId) && <CheckIcon className="h-3 w-3" />}
+                  {students.length === 0 && (
+                    <span className="text-sm text-muted-foreground col-span-2">
+                      No students available to select.
+                    </span>
+                  )}
+                  {students.map((student) => {
+                    // Defensive: support both user_id (from db) and userId (from static/mock data/etc)
+                    const studentId = student.user_id || student.userId || "";
+                    const studentName = student.name || student.username || "Unnamed Student";
+                    return (
+                      <div
+                        key={studentId}
+                        className={`
+                          flex items-center space-x-2 p-2 rounded
+                          ${selectedStudents.includes(studentId)
+                            ? "bg-primary/10 border border-primary"
+                            : "border hover:bg-muted cursor-pointer"}
+                        `}
+                        onClick={() => {
+                          if (selectedStudents.includes(studentId)) {
+                            setSelectedStudents(selectedStudents.filter((sid) => sid !== studentId));
+                          } else {
+                            setSelectedStudents([...selectedStudents, studentId]);
+                          }
+                        }}
+                      >
+                        <div
+                          className={`
+                            h-5 w-5 flex items-center justify-center rounded-sm
+                            ${selectedStudents.includes(studentId)
+                              ? "bg-primary text-primary-foreground"
+                              : "border"}
+                          `}
+                        >
+                          {selectedStudents.includes(studentId) && <CheckIcon className="h-3 w-3" />}
+                        </div>
+                        <span className="text-sm">
+                          {/* Show name and user_id/userId */}
+                          {studentName} ({studentId})
+                        </span>
                       </div>
-                      <span className="text-sm">{student.name} ({student.user_id || student.userId})</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {selectedStudents.length > 0 && (
                   <p className="text-sm text-muted-foreground">
