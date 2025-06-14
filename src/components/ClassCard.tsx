@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,9 @@ import AttendanceHistory from "./AttendanceHistory";
 import CSVAttendanceUpload from "./CSVAttendanceUpload";
 import { Class } from "@/lib/types";
 import EditParticipantsDialog from "./EditParticipantsDialog";
+import DeleteClassButton from "./DeleteClassButton";
+import ClassCardHeader from "./ClassCardHeader";
+import ClassCardFooter from "./ClassCardFooter";
 
 interface ClassCardProps {
   classData: Class;
@@ -100,43 +102,11 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   return (
     <>
       <Card className={classData.isActive ? "border-primary" : ""}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-medium flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span>{classData.name}</span>
-              {/* Delete button beside class name */}
-              <Button
-                variant="destructive"
-                size="icon"
-                onClick={handleDelete}
-                disabled={classData.isActive}
-                className="ml-2 w-8 h-8"
-                title="Delete Class"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-            {classData.isOnlineMode && (
-              <div className="flex items-center text-blue-600">
-                <Wifi className="h-4 w-4 mr-1" />
-                <span className="text-xs">Online</span>
-              </div>
-            )}
-          </CardTitle>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Users className="h-4 w-4 mr-1" />
-            <span>{studentCount} student{studentCount !== 1 && "s"}</span>
-            {/* Edit Participants button beside student count */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-2 p-1 h-7"
-              onClick={() => setShowEditParticipants(true)}
-            >
-              Edit Participants
-            </Button>
-          </div>
-        </CardHeader>
+        <ClassCardHeader
+          classData={classData}
+          onDelete={handleDelete}
+          onEditParticipants={() => setShowEditParticipants(true)}
+        />
         <CardContent className="pb-2 space-y-3">
           <div className="flex items-center justify-between">
             <div className={`text-sm ${classData.isActive ? "text-primary" : "text-muted-foreground"}`}>
@@ -149,7 +119,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             )}
           </div>
           
-          {/* Online Mode Toggle */}
+          {/* Online Mode Toggle & Info */}
           <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
             <div className="flex items-center space-x-2">
               {classData.isOnlineMode ? <Wifi className="h-4 w-4 text-blue-600" /> : <WifiOff className="h-4 w-4 text-gray-500" />}
@@ -163,8 +133,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
               onCheckedChange={handleToggleOnlineMode}
             />
           </div>
-
-          {/* Online Mode Information */}
           {classData.isOnlineMode && (
             <Alert className="border-blue-200 bg-blue-50">
               <Info className="h-4 w-4 text-blue-600" />
@@ -186,64 +154,18 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
             </Alert>
           )}
         </CardContent>
-        <CardFooter className="pt-2 flex flex-wrap gap-2">
-          <Button 
-            variant={classData.isActive ? "outline" : "default"}
-            size="sm"
-            className="flex-1 min-w-[120px] flex-nowrap overflow-hidden text-ellipsis whitespace-nowrap justify-start px-3"
-            onClick={handleToggleStatus}
-          >
-            {classData.isActive ? (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Stop Class
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Start Class
-              </>
-            )}
-          </Button>
-          
-          {/* CSV Upload button - only show for online mode */}
-          {classData.isOnlineMode && classData.isActive && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCSVUploadDialog(true)}
-              className="flex-1 min-w-[100px]"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload CSV
-            </Button>
-          )}
-          
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAttendanceDashboard(true)}
-            className="flex-1 min-w-[100px]"
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Dashboard
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAttendanceHistory(true)}
-            className="flex-1 min-w-[100px]"
-          >
-            <History className="h-4 w-4 mr-2" />
-            History
-          </Button>
-
-          {/* Removed Delete button from here */}
+        <CardFooter>
+          <ClassCardFooter
+            classData={classData}
+            onToggleStatus={handleToggleStatus}
+            onShowDashboard={() => setShowAttendanceDashboard(true)}
+            onShowHistory={() => setShowAttendanceHistory(true)}
+            onShowCSVUpload={() => setShowCSVUploadDialog(true)}
+          />
         </CardFooter>
       </Card>
 
+      {/* Dialogs remain the same */}
       {/* CSV Attendance Upload Dialog */}
       <Dialog open={showCSVUploadDialog} onOpenChange={setShowCSVUploadDialog}>
         <DialogContent className="max-w-lg">
@@ -283,7 +205,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
         onOpenChange={setShowEditParticipants}
         classData={classData}
         onStudentsUpdated={ids => {
-          // update class participant IDs (use service)
           import("@/lib/classService").then(mod => {
             mod.updateClassParticipants(classData.id, teacherId, ids);
             onStatusChange();
