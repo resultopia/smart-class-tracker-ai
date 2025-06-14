@@ -1,15 +1,15 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { getStudentActiveClass, markAttendance, verifyFaceIdentity } from "@/lib/data";
+import { markAttendance, verifyFaceIdentity } from "@/lib/data";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/use-toast";
 import ImageUpload from "@/components/ImageUpload";
 import { RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UserInfo from "@/components/UserInfo";
+import { getStudentActiveClassSupabase } from "@/lib/class/getStudentActiveClassSupabase";
 
 const StudentAttendance = () => {
   const { currentUser, logout } = useAuth();
@@ -19,13 +19,13 @@ const StudentAttendance = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
-  
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     if (!currentUser) {
       navigate("/");
       return;
     }
-
     if (currentUser.role !== "student") {
       toast({
         title: "Access Denied",
@@ -35,18 +35,20 @@ const StudentAttendance = () => {
       navigate("/");
       return;
     }
-
     checkActiveClass();
+    // eslint-disable-next-line
   }, [currentUser, navigate]);
 
-  const checkActiveClass = () => {
+  const checkActiveClass = async () => {
     if (!currentUser) return;
-    
-    const studentClass = getStudentActiveClass(currentUser.userId);
+    setLoading(true);
+    // Fetch from Supabase
+    const studentClass = await getStudentActiveClassSupabase(currentUser.userId);
     setActiveClass(studentClass);
     setProcessingStatus('idle');
     setSelectedImage(null);
     setImageBase64(null);
+    setLoading(false);
   };
 
   const handleLogout = () => {
@@ -118,11 +120,19 @@ const StudentAttendance = () => {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-center">
-              {activeClass ? activeClass.name : "No Active Classes"}
+              {loading
+                ? "Loading..."
+                : activeClass
+                ? activeClass.name
+                : "No Active Classes"}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {activeClass ? (
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Checking for active class...</p>
+              </div>
+            ) : activeClass ? (
               <>
                 {/* Online Mode Restriction */}
                 {activeClass.isOnlineMode ? (
