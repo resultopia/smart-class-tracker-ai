@@ -1,4 +1,3 @@
-
 // This file serves as a central export point for all data-related functionality
 
 // Re-export all types
@@ -27,7 +26,9 @@ export {
   toggleClassStatus,
   toggleOnlineMode,
   bulkAddStudentsToClass,
-  getClassSessionsForDate
+  getClassSessionsForDate,
+  updateClassesReference,
+  updateClassParticipants
 } from './classService';
 
 // Re-export attendance service functions
