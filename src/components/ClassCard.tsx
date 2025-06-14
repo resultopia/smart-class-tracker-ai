@@ -11,7 +11,6 @@ import DeleteClassButton from "./DeleteClassButton";
 import ClassCardHeader from "./ClassCardHeader";
 import ClassCardFooter from "./ClassCardFooter";
 import ClassOnlineModeAlert from "./ClassOnlineModeAlert";
-import ClassTodayAttendanceSummary from "./ClassTodayAttendanceSummary";
 import ClassStatus from "./ClassStatus";
 import StudentCount from "./StudentCount";
 import OnlineModeToggle from "./OnlineModeToggle";
@@ -157,9 +156,6 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
           <div className="flex items-center justify-between">
             {/* Pass isActive as boolean for display only */}
             <ClassStatus isActive={!!classData.isActive} />
-            {!!classData.isActive && (
-              <ClassTodayAttendanceSummary classData={classData} />
-            )}
           </div>
           <OnlineModeToggle 
             classId={classData.id}
