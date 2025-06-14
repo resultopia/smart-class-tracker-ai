@@ -118,9 +118,9 @@ const TeacherDashboard = () => {
       return;
     }
 
-    // Allow only student IDs that resemble UUIDs
-    const allStudents = [...selectedStudents, ...csvStudents].filter(isUUID);
-    console.log("All students to add (filtered uuids):", allStudents);
+    // Allow ALL student ids (removed UUID filter)
+    const allStudents = [...selectedStudents, ...csvStudents];
+    console.log("All students to add (all IDs, no UUID filter):", allStudents);
     console.log("Class name:", className);
 
     if (allStudents.length === 0) {
@@ -132,7 +132,11 @@ const TeacherDashboard = () => {
       return;
     }
 
-    // Check teacher id is uuid
+    // Check teacher id is uuid (keep this check)
+    const isUUID = (id: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        id
+      );
     if (!isUUID(currentUser.userId)) {
       toast({
         title: "Error",
