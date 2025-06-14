@@ -6,7 +6,7 @@ export interface StudentAttendanceStatus {
   uuid: string;
   userId: string;
   name: string;
-  status: "present" | "absent";
+  status: "present" | "absent" | null;
 }
 
 type StudentAttendanceRowProps = {
@@ -15,11 +15,11 @@ type StudentAttendanceRowProps = {
   isClassActive: boolean;
 }
 
+// Show userId and name even when class is not active
 const StudentAttendanceRow = ({ student, onToggleAttendance, isClassActive }: StudentAttendanceRowProps) => (
   <tr>
-    {/* Removed the uuid cell */}
-    <td className="p-4 align-middle">{student.userId}</td>
-    <td className="p-4 align-middle">{student.name}</td>
+    <td className="p-4 align-middle">{student.userId || <span className="text-gray-400 italic">Unknown</span>}</td>
+    <td className="p-4 align-middle">{student.name || <span className="text-gray-400 italic">Unknown</span>}</td>
     <td className="p-4 align-middle">
       {isClassActive ? (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -52,9 +52,9 @@ const StudentAttendanceRow = ({ student, onToggleAttendance, isClassActive }: St
       <Button
         variant={student.status === "present" ? "destructive" : "default"}
         size="sm"
-        onClick={() => isClassActive && onToggleAttendance(student.uuid, student.status)}
+        onClick={() => isClassActive && onToggleAttendance(student.uuid, student.status!)}
         disabled={!isClassActive}
-        className={!isClassActive ? "opacity-50 cursor-not-allowed" : ""}
+        className={!isClassActive ? "opacity-50 cursor-not-allowed bg-gray-200 text-gray-500" : ""}
       >
         {isClassActive
           ? (student.status === "present" ? "Mark Absent" : "Mark Present")
@@ -65,3 +65,4 @@ const StudentAttendanceRow = ({ student, onToggleAttendance, isClassActive }: St
 );
 
 export default StudentAttendanceRow;
+

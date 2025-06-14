@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -38,27 +37,41 @@ export const useTeacherClasses = () => {
       .from("classes")
       .select("*")
       .eq("teacher_id", teacherUUID);
-    if (classRows) {
-      const classList: Class[] = [];
-      for (const cls of classRows) {
-        const { data: joined } = await supabase
+
+    // Keep the order of classes the same if possible
+    setClasses((prev) => {
+      let prevOrder = prev.map(c => c.id);
+      let classList: Class[] = [];
+      if (classRows) {
+        for (const cls of classRows) {
+          const { data: joined } = await supabase
             .from("classes_students")
             .select("student_id")
             .eq("class_id", cls.id);
-        const studentIds = joined ? joined.map((j) => j.student_id) : [];
-        classList.push({
-          id: cls.id,
-          name: cls.name,
-          teacherId: cls.teacher_id,
-          studentIds,
-          isActive: cls.is_active,
-          isOnlineMode: cls.is_online_mode,
-          attendanceRecords: [],
-          sessions: [],
+          const studentIds = joined ? joined.map((j) => j.student_id) : [];
+          classList.push({
+            id: cls.id,
+            name: cls.name,
+            teacherId: cls.teacher_id,
+            studentIds,
+            isActive: cls.is_active,
+            isOnlineMode: cls.is_online_mode,
+            attendanceRecords: [],
+            sessions: [],
+          });
+        }
+        // Try to order classList using prevOrder
+        classList.sort((a, b) => {
+          let aIdx = prevOrder.indexOf(a.id);
+          let bIdx = prevOrder.indexOf(b.id);
+          if (aIdx === -1 && bIdx === -1) return 0;
+          if (aIdx === -1) return 1;
+          if (bIdx === -1) return -1;
+          return aIdx - bIdx;
         });
       }
-      setClasses(classList);
-    }
+      return classList;
+    });
   }, [teacherUUID]);
 
   const loadStudents = useCallback(async () => {

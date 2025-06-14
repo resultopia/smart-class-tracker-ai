@@ -114,12 +114,26 @@ const AttendanceDashboard = ({ classData, resetFlag, onResetDone }: AttendanceDa
     } else {
       // Not active, so reset everyone to absent (preparing for new session); clear session ref!
       lastSessionIdRef.current = null;
+      // Fetch student info (userId, name) for each student in class
+      const studentIds = classData.studentIds || [];
+      let profileData: Record<string, { user_id: string; name: string }> = {};
+      if (studentIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, user_id, name")
+          .in("id", studentIds);
+        if (profiles && Array.isArray(profiles)) {
+          profiles.forEach((row) => {
+            profileData[row.id] = { user_id: row.user_id, name: row.name };
+          });
+        }
+      }
       setStudentsStatus(
-        classData.studentIds.map((id) => ({
+        studentIds.map((id) => ({
           uuid: id,
-          userId: "",
-          name: "",
-          status: "absent",
+          userId: profileData[id]?.user_id || "",
+          name: profileData[id]?.name || "",
+          status: null as any, // status is null when stopped
         }))
       );
     }
