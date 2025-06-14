@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -112,7 +111,7 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     const refreshedData = initializeData();
     const classes = refreshedData.classes;
     
-    const newStatus = currentStatus === "present" ? "absent" : "present";
+    const newStatus: "present" | "absent" = currentStatus === "present" ? "absent" : "present";
     
     const updatedClasses = classes.map(cls => {
       if (cls.id === classData.id) {
@@ -138,16 +137,16 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     
     saveClasses(updatedClasses);
     
-    // Update local state
-    const updatedRecords = filteredRecords.map(record => 
+    // Update local state with proper typing
+    const updatedRecords: AttendanceRecord[] = filteredRecords.map(record => 
       record.studentId === studentId 
         ? { ...record, status: newStatus }
         : record
     );
     setFilteredRecords(updatedRecords);
     
-    // Update selected session
-    const updatedSession = {
+    // Update selected session with proper typing
+    const updatedSession: ClassSession = {
       ...selectedSession,
       attendanceRecords: updatedRecords
     };
@@ -268,7 +267,7 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
                           <div className={cn(
                             "text-xs",
                             selectedSession?.sessionId === session.sessionId 
-                              ? "text-white/80" 
+                              ? "text-white" 
                               : "text-muted-foreground"
                           )}>
                             {format(new Date(session.startTime), 'HH:mm')} - {
@@ -278,7 +277,7 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
                           <div className={cn(
                             "text-xs",
                             selectedSession?.sessionId === session.sessionId 
-                              ? "text-white/80" 
+                              ? "text-white" 
                               : "text-muted-foreground"
                           )}>
                             {session.attendanceRecords.length} records
