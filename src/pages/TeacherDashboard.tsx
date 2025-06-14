@@ -27,6 +27,8 @@ export interface Class {
   studentIds: string[];
   isActive: boolean;
   isOnlineMode: boolean;
+  attendanceRecords: import("@/lib/types").AttendanceRecord[];
+  sessions: import("@/lib/types").ClassSession[];
 }
 
 const TeacherDashboard = () => {
@@ -83,7 +85,7 @@ const TeacherDashboard = () => {
       const classList: Class[] = [];
       for (const cls of classRows) {
         // Get joined students for this class
-        const { data: joined, error: studentError } = await supabase
+        const { data: joined } = await supabase
           .from("classes_students")
           .select("student_id")
           .eq("class_id", cls.id);
@@ -95,6 +97,8 @@ const TeacherDashboard = () => {
           studentIds,
           isActive: cls.is_active,
           isOnlineMode: cls.is_online_mode,
+          attendanceRecords: [], // <-- Fix: provide empty array
+          sessions: [],          // <-- Fix: provide empty array
         });
       }
       setClasses(classList);

@@ -33,6 +33,7 @@ export interface AttendanceRecord {
   studentId: string;
   timestamp: Date;
   status?: "present" | "absent";
+  sessionId?: string; // <-- ADDED
 }
 
 // Local storage keys
