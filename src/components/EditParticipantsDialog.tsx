@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,19 @@ interface EditParticipantsDialogProps {
 const EditParticipantsDialog = ({ open, onOpenChange, classData, onStudentsUpdated }: EditParticipantsDialogProps) => {
   const { toast } = useToast();
   // All students in the system
-  const allStudents = getUsersByRole("student");
+  const [allStudents, setAllStudents] = useState<{ userId: string, name: string }[]>([]);
   const [search, setSearch] = useState("");
   // Locally editable list of IDs
   const [studentIds, setStudentIds] = useState<string[]>(classData.studentIds);
 
   useEffect(() => { setStudentIds(classData.studentIds); }, [classData.studentIds]);
+  useEffect(() => {
+    const fetchStudents = async () => {
+      const students = await getUsersByRole("student");
+      setAllStudents(students);
+    };
+    fetchStudents();
+  }, []);
   
   // Filtering helpers
   const filteredAllStudents = allStudents.filter(st =>

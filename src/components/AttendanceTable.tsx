@@ -1,8 +1,8 @@
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { getUserById } from "@/lib/data";
 import { AttendanceRecord, ClassSession } from "@/lib/types";
+import { useEffect, useState } from "react";
 
 interface AttendanceTableProps {
   filteredRecords: AttendanceRecord[];
@@ -14,56 +14,72 @@ const AttendanceTable = ({
   filteredRecords,
   selectedSession,
   toggleAttendanceStatus,
-}: AttendanceTableProps) => (
-  <div className="border rounded-md">
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Student ID</TableHead>
-          <TableHead>Name</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead>Time</TableHead>
-          <TableHead>Status</TableHead>
-          {selectedSession && <TableHead>Actions</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {filteredRecords.map((record, index) => {
-          const student = getUserById(record.studentId);
-          const recordDate = new Date(record.timestamp);
-          const currentStatus = record.status || "present";
-          return (
-            <TableRow key={index}>
-              <TableCell>{record.studentId}</TableCell>
-              <TableCell>{student?.name || "Unknown"}</TableCell>
-              <TableCell>{recordDate.toLocaleDateString()}</TableCell>
-              <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
-              <TableCell>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  currentStatus === "present" 
-                    ? "bg-green-100 text-green-800" 
-                    : "bg-red-100 text-red-800"
-                }`}>
-                  {currentStatus}
-                </span>
-              </TableCell>
-              {selectedSession && (
+}: AttendanceTableProps) => {
+  // Map userId to name
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchNames = async () => {
+      const names: Record<string, string> = {};
+      for (const record of filteredRecords) {
+        const user = await getUserById(record.studentId);
+        names[record.studentId] = user?.name || "Unknown";
+      }
+      setUserNames(names);
+    };
+    fetchNames();
+  }, [filteredRecords]);
+
+  return (
+    <div className="border rounded-md">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Student ID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Time</TableHead>
+            <TableHead>Status</TableHead>
+            {selectedSession && <TableHead>Actions</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredRecords.map((record, index) => {
+            const recordDate = new Date(record.timestamp);
+            const currentStatus = record.status || "present";
+            return (
+              <TableRow key={index}>
+                <TableCell>{record.studentId}</TableCell>
+                <TableCell>{userNames[record.studentId] || "Loading..."}</TableCell>
+                <TableCell>{recordDate.toLocaleDateString()}</TableCell>
+                <TableCell>{recordDate.toLocaleTimeString()}</TableCell>
                 <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleAttendanceStatus(record.studentId, currentStatus)}
-                  >
-                    Mark {currentStatus === "present" ? "Absent" : "Present"}
-                  </Button>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    currentStatus === "present" 
+                      ? "bg-green-100 text-green-800" 
+                      : "bg-red-100 text-red-800"
+                  }`}>
+                    {currentStatus}
+                  </span>
                 </TableCell>
-              )}
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  </div>
-);
+                {selectedSession && (
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleAttendanceStatus(record.studentId, currentStatus)}
+                    >
+                      Mark {currentStatus === "present" ? "Absent" : "Present"}
+                    </Button>
+                  </TableCell>
+                )}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
 
 export default AttendanceTable;

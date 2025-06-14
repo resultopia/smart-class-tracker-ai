@@ -36,6 +36,7 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
   const [dateSessions, setDateSessions] = useState<ClassSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
+  const [userLookup, setUserLookup] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -226,6 +227,18 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     setSelectedSession(null);
     filterRecordsByDate(allRecords, undefined);
   };
+
+  useEffect(() => {
+    const fetchUserNames = async () => {
+      const lookup: Record<string, string> = {};
+      for (const studentId of classData.studentIds) {
+        const user = await getUserById(studentId);
+        lookup[studentId] = user?.name || "Unknown";
+      }
+      setUserLookup(lookup);
+    };
+    fetchUserNames();
+  }, [classData.studentIds]);
 
   return (
     <div className="space-y-6">

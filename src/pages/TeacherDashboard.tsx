@@ -36,6 +36,7 @@ const TeacherDashboard = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [students, setStudents] = useState<any[]>([]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -55,6 +56,13 @@ const TeacherDashboard = () => {
 
     // Load teacher's classes
     loadClasses();
+
+    // Load students asynchronously here
+    const loadStudents = async () => {
+      const s = await getUsersByRole("student");
+      setStudents(s);
+    };
+    loadStudents();
   }, [currentUser, navigate]);
 
   const loadClasses = () => {
@@ -106,8 +114,6 @@ const TeacherDashboard = () => {
   const handleCSVStudentsUploaded = (students: string[]) => {
     setCsvStudents(students);
   };
-
-  const students = getUsersByRole("student");
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">

@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +34,7 @@ const CSVAttendanceUpload = ({ classId, onAttendanceMarked }: CSVAttendanceUploa
         
         if (username) {
           // Check if user exists
-          const user = getUserById(username);
+          const user = await getUserById(username); // <== await here
           if (user && user.role === "student") {
             // Mark attendance
             const success = markAttendance(classId, username, "present");

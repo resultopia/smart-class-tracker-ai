@@ -1,4 +1,3 @@
-
 import { AttendanceRecord, Class } from './types';
 import { initializeData, saveClasses } from './storage';
 import { getUserById } from './userService';
@@ -73,7 +72,7 @@ export const resetTodayAttendance = (classId: string) => {
 };
 
 // Get today's attendance status for each student in a class
-export const getStudentsAttendanceStatus = (classId: string) => {
+export const getStudentsAttendanceStatus = async (classId: string) => {
   // Refresh data from localStorage
   const refreshedData = initializeData();
   classes = refreshedData.classes;
@@ -84,8 +83,9 @@ export const getStudentsAttendanceStatus = (classId: string) => {
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   
-  return classObj.studentIds.map(studentId => {
-    const user = getUserById(studentId);
+  // Use async version
+  const results = await Promise.all(classObj.studentIds.map(async studentId => {
+    const user = await getUserById(studentId);
     const todayRecord = classObj.attendanceRecords.find(record => 
       record.studentId === studentId && record.timestamp >= todayStart
     );
@@ -95,7 +95,8 @@ export const getStudentsAttendanceStatus = (classId: string) => {
       name: user?.name || "Unknown",
       status: todayRecord?.status || "absent"
     };
-  });
+  }));
+  return results;
 };
 
 // Mock face recognition API call
