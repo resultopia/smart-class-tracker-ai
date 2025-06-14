@@ -5,13 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -19,13 +12,22 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { getUsersByRole, createClass, getTeacherClasses, Class } from "@/lib/data";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import ClassCard from "@/components/ClassCard";
 import CSVUpload from "@/components/CSVUpload";
 import { useToast } from "@/components/ui/use-toast";
 import { CheckIcon, PlusIcon, Users } from "lucide-react";
 import UserInfo from "@/components/UserInfo";
+
+export interface Class {
+  id: string;
+  name: string;
+  teacherId: string;
+  studentIds: string[];
+  isActive: boolean;
+  isOnlineMode: boolean;
+}
 
 const TeacherDashboard = () => {
   const { currentUser } = useAuth();
@@ -38,6 +40,7 @@ const TeacherDashboard = () => {
   const { toast } = useToast();
   const [students, setStudents] = useState<any[]>([]);
 
+  // Fetch profile (students and teachers)
   useEffect(() => {
     if (!currentUser) {
       navigate("/");
@@ -54,26 +57,54 @@ const TeacherDashboard = () => {
       return;
     }
 
-    // Load teacher's classes
     loadClasses();
 
-    // Load students asynchronously here
+    // Load students from Supabase
     const loadStudents = async () => {
-      const s = await getUsersByRole("student");
-      setStudents(s);
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "student");
+      if (profiles) setStudents(profiles);
     };
     loadStudents();
   }, [currentUser, navigate]);
 
-  const loadClasses = () => {
+  // Load teacher's classes from Supabase
+  const loadClasses = async () => {
     if (!currentUser) return;
-    const teacherClasses = getTeacherClasses(currentUser.userId);
-    setClasses(teacherClasses);
+    // Get all classes where teacher_id = auth user's (profiles) id
+    const { data: classRows, error } = await supabase
+      .from("classes")
+      .select("*")
+      .eq("teacher_id", currentUser.id);
+    if (classRows) {
+      // For each class, get associated students
+      const classList: Class[] = [];
+      for (const cls of classRows) {
+        // Get joined students for this class
+        const { data: joined, error: studentError } = await supabase
+          .from("classes_students")
+          .select("student_id")
+          .eq("class_id", cls.id);
+        const studentIds = joined ? joined.map(j => j.student_id) : [];
+        classList.push({
+          id: cls.id,
+          name: cls.name,
+          teacherId: cls.teacher_id,
+          studentIds,
+          isActive: cls.is_active,
+          isOnlineMode: cls.is_online_mode,
+        });
+      }
+      setClasses(classList);
+    }
   };
 
-  const handleCreateClass = () => {
+  // Create class: rows in classes and classes_students
+  const handleCreateClass = async () => {
     if (!currentUser) return;
-    
+
     if (!className.trim()) {
       toast({
         title: "Error",
@@ -82,7 +113,7 @@ const TeacherDashboard = () => {
       });
       return;
     }
-    
+
     const allStudents = [...selectedStudents, ...csvStudents];
     if (allStudents.length === 0) {
       toast({
@@ -92,18 +123,41 @@ const TeacherDashboard = () => {
       });
       return;
     }
-    
-    createClass({
-      name: className,
-      teacherId: currentUser.userId,
-      studentIds: allStudents,
-    });
-    
+
+    // Insert into classes table
+    const { data: classData, error } = await supabase
+      .from("classes")
+      .insert([
+        {
+          name: className,
+          teacher_id: currentUser.id,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error || !classData) {
+      toast({
+        title: "Error",
+        description: "Failed to create class in database.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Insert into classes_students join table
+    const studentJoins = allStudents.map(studentId => ({
+      class_id: classData.id,
+      student_id: studentId,
+    }));
+
+    await supabase.from("classes_students").insert(studentJoins);
+
     toast({
       title: "Success",
       description: `New class created successfully with ${allStudents.length} students.`,
     });
-    
+
     setClassName("");
     setSelectedStudents([]);
     setCsvStudents([]);

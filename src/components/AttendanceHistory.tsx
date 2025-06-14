@@ -12,13 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/use-toast";
-import { 
-  getClassAttendance, 
-  getUserById,
-  saveClasses,
-  initializeData
-} from "@/lib/data";
-import { getClassSessionsForDate } from "@/lib/classService";
+import { supabase } from "@/integrations/supabase/client";
 import { CalendarIcon, FileDown, Filter, Clock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Class, AttendanceRecord, ClassSession } from "@/lib/types";
@@ -39,11 +33,90 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
   const [userLookup, setUserLookup] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
+  // Load all attendance and sessions from Supabase
   useEffect(() => {
-    const records = getClassAttendance(classData.id);
-    setAllRecords(records);
-    filterRecordsByDate(records, selectedDate);
+    const fetchAttendance = async () => {
+      // Fetch sessions for this class
+      let filteredSessions: ClassSession[] = [];
+      if (selectedDate) {
+        // Get all class_sessions for date
+        const dateStart = new Date(selectedDate);
+        dateStart.setHours(0, 0, 0, 0);
+        const dateEnd = new Date(dateStart);
+        dateEnd.setDate(dateStart.getDate() + 1);
+
+        const { data: sessionRows } = await supabase
+          .from("class_sessions")
+          .select("*")
+          .eq("class_id", classData.id)
+          .gte("start_time", dateStart.toISOString())
+          .lt("start_time", dateEnd.toISOString());
+
+        filteredSessions = sessionRows?.map((row) => ({
+          sessionId: row.id,
+          startTime: new Date(row.start_time),
+          endTime: row.end_time ? new Date(row.end_time) : undefined,
+          attendanceRecords: [],
+        })) || [];
+      } else {
+        // All sessions for the class
+        const { data: sessionRows } = await supabase
+          .from("class_sessions")
+          .select("*")
+          .eq("class_id", classData.id);
+        filteredSessions = sessionRows?.map((row) => ({
+          sessionId: row.id,
+          startTime: new Date(row.start_time),
+          endTime: row.end_time ? new Date(row.end_time) : undefined,
+          attendanceRecords: [],
+        })) || [];
+      }
+      setDateSessions(filteredSessions);
+
+      // Prefetch attendance records (all for that class, can later filter)
+      const { data: recordsRows } = await supabase
+        .from("attendance_records")
+        .select("*")
+        .eq("class_id", classData.id);
+      const attendance = recordsRows?.map((row) => ({
+        studentId: row.student_id,
+        timestamp: new Date(row.timestamp),
+        status: row.status as "present" | "absent",
+        sessionId: row.session_id,
+      })) || [];
+      setAllRecords(attendance);
+
+      // Filter records for this date if none selected
+      if (!selectedDate) {
+        setFilteredRecords(attendance);
+      } else {
+        // Only those from sessions of today
+        const todaySessionIds = filteredSessions.map(s => s.sessionId);
+        setFilteredRecords(attendance.filter(rec => rec.sessionId && todaySessionIds.includes(rec.sessionId)));
+      }
+    };
+    fetchAttendance();
   }, [classData.id, selectedDate]);
+
+  // All user name lookups also will use Supabase
+  useEffect(() => {
+    const fetchUserNames = async () => {
+      // Get unique user ids
+      const ids = classData.studentIds;
+      if (!ids.length) return;
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id,name")
+        .in("user_id", ids);
+      if (profiles) {
+        const lookup = Object.fromEntries(
+          profiles.map((p: { user_id: string, name: string }) => [p.user_id, p.name])
+        );
+        setUserLookup(lookup);
+      }
+    };
+    fetchUserNames();
+  }, [classData.studentIds]);
 
   const filterRecordsByDate = (records: AttendanceRecord[], date: Date | undefined) => {
     if (!date) {
@@ -231,18 +304,6 @@ const AttendanceHistory = ({ classData }: AttendanceHistoryProps) => {
     setSelectedSession(null);
     filterRecordsByDate(allRecords, undefined);
   };
-
-  useEffect(() => {
-    const fetchUserNames = async () => {
-      const lookup: Record<string, string> = {};
-      for (const studentId of classData.studentIds) {
-        const user = await getUserById(studentId);
-        lookup[studentId] = user?.name || "Unknown";
-      }
-      setUserLookup(lookup);
-    };
-    fetchUserNames();
-  }, [classData.studentIds]);
 
   return (
     <div className="space-y-6">

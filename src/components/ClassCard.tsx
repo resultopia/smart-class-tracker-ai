@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { deleteClass, toggleClassStatus, toggleOnlineMode } from "@/lib/data";
 import { useToast } from "@/components/ui/use-toast";
 import AttendanceDashboard from "./AttendanceDashboard";
 import AttendanceHistory from "./AttendanceHistory";
@@ -16,6 +15,7 @@ import ClassTodayAttendanceSummary from "./ClassTodayAttendanceSummary";
 import ClassStatus from "./ClassStatus";
 import StudentCount from "./StudentCount";
 import OnlineModeToggle from "./OnlineModeToggle";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClassCardProps {
   classData: Class;
@@ -31,15 +31,21 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
   const [showEditParticipants, setShowEditParticipants] = useState(false);
   const { toast } = useToast();
 
-  const handleToggleStatus = () => {
-    const success = toggleClassStatus(classData.id, teacherId);
-    if (success) {
+  // Refactored handlers for Supabase
+  const handleToggleStatus = async () => {
+    // Load current value
+    const { data, error } = await supabase
+      .from("classes")
+      .update({ is_active: !classData.isActive })
+      .eq("id", classData.id);
+
+    if (!error) {
       onStatusChange();
       toast({
         title: classData.isActive ? "Class Stopped" : "Class Started",
-        description: classData.isActive 
-          ? "Current session ended and saved to history. Attendance dashboard reset." 
-          : "New session started. Students can now mark attendance.",
+        description: classData.isActive
+          ? "Session ended and saved. Attendance reset."
+          : "Session started. Students can mark attendance.",
       });
     } else {
       toast({
@@ -50,14 +56,18 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
     }
   };
 
-  const handleToggleOnlineMode = () => {
-    const success = toggleOnlineMode(classData.id, teacherId);
-    if (success) {
+  const handleToggleOnlineMode = async () => {
+    const { error } = await supabase
+      .from("classes")
+      .update({ is_online_mode: !classData.isOnlineMode })
+      .eq("id", classData.id);
+
+    if (!error) {
       onStatusChange();
       toast({
         title: `Online Mode ${classData.isOnlineMode ? "Disabled" : "Enabled"}`,
-        description: classData.isOnlineMode 
-          ? "Students can now mark their own attendance." 
+        description: classData.isOnlineMode
+          ? "Students can now mark their own attendance."
           : "Only teachers can mark attendance in online mode.",
       });
     } else {
@@ -81,7 +91,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange }: ClassCardProps) => 
     setShowCSVUploadDialog(false);
   };
 
-  // Get student count
+  // All student IDs come from classData
   const studentCount = classData.studentIds.length;
 
   return (
