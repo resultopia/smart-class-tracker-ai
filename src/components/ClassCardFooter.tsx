@@ -113,4 +113,3 @@ const ClassCardFooter = ({
 };
 
 export default ClassCardFooter;
-
