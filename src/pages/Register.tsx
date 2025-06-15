@@ -223,11 +223,6 @@ const Register = () => {
             </CardContent>
           </Card>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button variant="link" onClick={() => navigate("/")}>
-            Back to Login
-          </Button>
-        </CardFooter>
       </Card>
       
       {/* CSV Upload Dialog for Teachers */}
