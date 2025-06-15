@@ -9,7 +9,7 @@ interface ClassCardFooterProps {
   onShowDashboard: () => void;
   onShowHistory: () => void;
   onShowCSVUpload: () => void;
-  anyClassActive?: boolean; // <-- new prop
+  anyClassActive?: boolean;
 }
 
 const ClassCardFooter = ({
@@ -21,7 +21,6 @@ const ClassCardFooter = ({
   anyClassActive = false,
 }: ClassCardFooterProps) => {
   const isActive = !!classData.isActive;
-  // Only show disable if *not* active and other class is running
   const disableStartButton = !isActive && anyClassActive;
 
   return (
@@ -36,7 +35,7 @@ const ClassCardFooter = ({
             : "default"
         }
         size="sm"
-        className={`flex-1 min-w-[120px] flex items-center px-3 font-semibold transition-all duration-150 
+        className={`flex-1 min-w-[120px] flex items-center px-4 font-semibold transition-all duration-150 
           ${disableStartButton ? "opacity-60 cursor-not-allowed border border-dashed" : ""} 
           justify-start max-w-full overflow-hidden`}
         onClick={onToggleStatus}
@@ -53,7 +52,7 @@ const ClassCardFooter = ({
         {isActive ? (
           <>
             <Pause className="h-4 w-4 mr-2 shrink-0" />
-            <span className="truncate block">
+            <span className="block whitespace-normal break-words">
               <span className="hidden sm:inline">Stop Class</span>
               <span className="sm:hidden">Stop</span>
             </span>
@@ -61,7 +60,7 @@ const ClassCardFooter = ({
         ) : (
           <>
             <Play className="h-4 w-4 mr-2 shrink-0" />
-            <span className="truncate block">
+            <span className="block whitespace-normal break-words">
               <span className="hidden sm:inline">Start Class</span>
               <span className="sm:hidden">Start</span>
             </span>
@@ -74,10 +73,10 @@ const ClassCardFooter = ({
           variant="outline"
           size="sm"
           onClick={onShowCSVUpload}
-          className="flex-1 min-w-[100px] font-semibold flex items-center justify-start max-w-full px-3 overflow-hidden"
+          className="flex-1 min-w-[110px] font-semibold flex items-center justify-start max-w-full px-4 overflow-hidden"
         >
           <Upload className="h-4 w-4 mr-2 shrink-0" />
-          <span className="truncate block">
+          <span className="block whitespace-normal break-words">
             <span className="hidden sm:inline">Upload CSV</span>
             <span className="sm:hidden">CSV</span>
           </span>
@@ -88,10 +87,10 @@ const ClassCardFooter = ({
         variant="outline"
         size="sm"
         onClick={onShowDashboard}
-        className="flex-1 min-w-[100px] font-semibold flex items-center justify-start max-w-full px-3 overflow-hidden"
+        className="flex-1 min-w-[110px] font-semibold flex items-center justify-start max-w-full px-4 overflow-hidden"
       >
         <Users className="h-4 w-4 mr-2 shrink-0" />
-        <span className="truncate block">
+        <span className="block whitespace-normal break-words">
           <span className="hidden sm:inline">Dashboard</span>
           <span className="sm:hidden">Dash</span>
         </span>
@@ -101,10 +100,10 @@ const ClassCardFooter = ({
         variant="outline"
         size="sm"
         onClick={onShowHistory}
-        className="flex-1 min-w-[100px] font-semibold flex items-center justify-start max-w-full px-3 overflow-hidden"
+        className="flex-1 min-w-[100px] font-semibold flex items-center justify-start max-w-full px-4 overflow-hidden"
       >
         <History className="h-4 w-4 mr-2 shrink-0" />
-        <span className="truncate block">
+        <span className="block whitespace-normal break-words">
           <span className="hidden sm:inline">History</span>
           <span className="sm:hidden">Hist</span>
         </span>
