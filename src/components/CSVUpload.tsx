@@ -45,27 +45,24 @@ const CSVUpload = ({ onStudentsUploaded, existingStudents = [] }: CSVUploadProps
       return;
     }
 
-    // Process the first row, check if it's a header
-    let startIdx = 0;
-    const firstRow = lines[0].trim();
-    const firstCell = firstRow.split(',')[0]?.trim().replace(/"/g, '');
-    if (firstCell && looksLikeHeader(firstCell)) {
-      // Looks like header, skip it
-      startIdx = 1;
-    }
-
-    for (let i = startIdx; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (line) {
-        const columns = line.split(',');
-        const studentId = columns[0].trim().replace(/"/g, ''); // Remove quotes
+      if (!line) continue;
 
-        if (studentId) {
-          if (existingStudents.includes(studentId)) {
-            foundDuplicates.push(studentId);
-          } else {
-            studentIds.push(studentId);
-          }
+      const columns = line.split(',');
+      const firstCell = columns[0]?.trim().replace(/"/g, "");
+      
+      // If this is the first row and it looks like a header, SKIP it and continue (DO NOT add as student)
+      if (i === 0 && firstCell && looksLikeHeader(firstCell)) {
+        continue;
+      }
+      // Otherwise, if firstCell is present, treat as studentId
+      const studentId = firstCell;
+      if (studentId) {
+        if (existingStudents.includes(studentId)) {
+          foundDuplicates.push(studentId);
+        } else {
+          studentIds.push(studentId);
         }
       }
     }
