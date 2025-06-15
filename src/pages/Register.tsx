@@ -193,26 +193,37 @@ const Register = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => (
-                      <TableRow key={user.userId}>
-                        <TableCell>{user.userId}</TableCell>
-                        <TableCell>{user.name}</TableCell>
-                        {role === "student" && (
-                          <TableCell>
-                            {(user as any).phoneNumber || "Not provided"}
+                    {filteredUsers.map((user, idx) => {
+                      // Guard for valid object shape (especially for teachers from malformed CSV uploads)
+                      const hasUserId = user && typeof user.userId === "string" && user.userId.trim().length > 0;
+                      const hasName = user && typeof user.name === "string" && user.name.trim().length > 0;
+                      if (!hasUserId || !hasName) {
+                        // Log invalid user object for debugging (not shown in UI)
+                        // eslint-disable-next-line no-console
+                        console.warn("Skipping corrupted user record at index", idx, user);
+                        return null;
+                      }
+                      return (
+                        <TableRow key={user.userId}>
+                          <TableCell>{user.userId}</TableCell>
+                          <TableCell>{user.name}</TableCell>
+                          {role === "student" && (
+                            <TableCell>
+                              {(user as any).phoneNumber || "Not provided"}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleDeleteUser(user.userId, user.name)}
+                            >
+                              <Trash2 size={16} />
+                            </Button>
                           </TableCell>
-                        )}
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => handleDeleteUser(user.userId, user.name)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               ) : (
