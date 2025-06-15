@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,8 @@ import { RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UserInfo from "@/components/UserInfo";
 import { getStudentActiveClassSupabase } from "@/lib/class/getStudentActiveClassSupabase";
-import { supabase } from "@/integrations/supabase/client"; // <-- add this import
+import { supabase } from "@/integrations/supabase/client";
+import { calculateDistanceMeters } from "@/utils/geolocation";
 
 const StudentAttendance = () => {
   const { currentUser, logout } = useAuth();
@@ -22,7 +22,11 @@ const StudentAttendance = () => {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [loading, setLoading] = useState(true);
-  const [studentUuid, setStudentUuid] = useState<string | null>(null); // <-- new state for uuid
+  const [studentUuid, setStudentUuid] = useState<string | null>(null);
+  const [sessionLocation, setSessionLocation] = useState<{lat: number, lng: number, radius: number} | null>(null);
+  const [studentCoords, setStudentCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [distanceStatus, setDistanceStatus] = useState<'pending' | 'valid' | 'out' | 'location-error'>('pending');
+  const [checkingDistance, setCheckingDistance] = useState(false);
 
   useEffect(() => {
     if (!currentUser) {
@@ -73,6 +77,27 @@ const StudentAttendance = () => {
     setSelectedImage(null);
     setImageBase64(null);
     setLoading(false);
+
+    // After getting class/session, fetch teacher location/radius for the session
+    if (studentClass?.isActive) {
+      const { data: session, error } = await supabase
+        .from("class_sessions")
+        .select("teacher_latitude, teacher_longitude, location_radius")
+        .eq("id", studentClass.isActive)
+        .maybeSingle();
+      if (!error && session?.teacher_latitude && session?.teacher_longitude && session?.location_radius) {
+        setSessionLocation({
+          lat: parseFloat(session.teacher_latitude),
+          lng: parseFloat(session.teacher_longitude),
+          radius: parseInt(session.location_radius, 10),
+        });
+      } else {
+        setSessionLocation(null);
+      }
+    } else {
+      setSessionLocation(null);
+    }
+    setDistanceStatus('pending');
   };
 
   const handleLogout = () => {
@@ -88,7 +113,20 @@ const StudentAttendance = () => {
 
   const submitAttendance = async () => {
     if (!currentUser || !activeClass || !imageBase64 || !studentUuid) return;
-    
+
+    // NEW: block if geolocation is required and student is outside radius
+    if (
+      !activeClass.isOnlineMode &&
+      sessionLocation &&
+      distanceStatus !== 'valid'
+    ) {
+      toast({
+        title: "Not In Range",
+        description: "You are not within the attendance radius to check in.",
+        variant: "destructive"
+      });
+      return;
+    }
     setProcessingStatus('processing');
     
     try {
@@ -195,13 +233,36 @@ const StudentAttendance = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {/* NEW: Show distance warning */}
+                    {sessionLocation && (
+                      <div className="text-center text-xs text-muted-foreground mb-2">
+                        Attendance allowed within {sessionLocation.radius} meters of teacher's location.
+                        <br />
+                        {checkingDistance ? (
+                          <span className="text-primary">Checking your location...</span>
+                        ) : distanceStatus === 'valid' ? (
+                          <span className="text-green-600">You are within range!</span>
+                        ) : distanceStatus === 'out' ? (
+                          <span className="text-red-600">You are <b>not</b> within attendance range.</span>
+                        ) : distanceStatus === 'location-error' ? (
+                          <span className="text-destructive">Could not get your location.</span>
+                        ) : (
+                          ""
+                        )}
+                      </div>
+                    )}
                     <p className="text-center text-muted-foreground mb-4">
                       Upload your photo to mark attendance
                     </p>
                     <ImageUpload onImageSelected={handleImageSelected} />
                     <Button 
                       className="w-full mt-4" 
-                      disabled={!imageBase64 || processingStatus === 'processing'}
+                      disabled={
+                        !imageBase64 || 
+                        processingStatus === 'processing' ||
+                        // Block if geolocation required and not valid
+                        (!activeClass.isOnlineMode && sessionLocation && distanceStatus !== 'valid')
+                      }
                       onClick={submitAttendance}
                     >
                       {processingStatus === 'processing' ? (

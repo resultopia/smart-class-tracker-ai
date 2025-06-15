@@ -16,6 +16,7 @@ import StudentCount from "./StudentCount";
 import OnlineModeToggle from "./OnlineModeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { updateClassParticipantsSupabase } from "@/lib/class/updateClassParticipantsSupabase";
+import { calculateDistanceMeters } from "@/utils/geolocation";
 
 interface ClassCardProps {
   classData: Class;
@@ -31,6 +32,7 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
   const [showCSVUploadDialog, setShowCSVUploadDialog] = useState(false);
   const [showEditParticipants, setShowEditParticipants] = useState(false);
   const [dashboardResetFlag, setDashboardResetFlag] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const { toast } = useToast();
 
   // Handler to start/stop class and manage sessions (now with session_id logic)
@@ -67,44 +69,79 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
         });
       }
     } else {
-      // Start new session: create class_sessions + set is_active to new session_id
-      const { data: newSession, error: sessionError } = await supabase
-        .from("class_sessions")
-        .insert({
-          class_id: classData.id,
-          start_time: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      // START: Get geolocation and prompt for radius, then insert session
+      setLocationLoading(true);
+      if (!("geolocation" in navigator)) {
+        toast({
+          title: "Geolocation Not Supported",
+          description: "Your browser doesn't support location access.",
+          variant: "destructive"
+        });
+        setLocationLoading(false);
+        return;
+      }
 
-      if (!sessionError && newSession?.id) {
-        // Update classes.is_active with the new session_id
-        const { error: updateClassError } = await supabase
-          .from("classes")
-          .update({ is_active: newSession.id })
-          .eq("id", classData.id);
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const teacher_latitude = pos.coords.latitude;
+          const teacher_longitude = pos.coords.longitude;
+          // Prompt for radius
+          const defaultRadius = 100;
+          let radius = prompt("Enter allowed attendance radius in meters (default: 100):", `${defaultRadius}`);
+          let location_radius = parseInt(radius || "") || defaultRadius;
 
-        if (!updateClassError) {
-          onStatusChange();
-          setDashboardResetFlag(false);
+          // Insert session with geocoords
+          const { data: newSession, error: sessionError } = await supabase
+            .from("class_sessions")
+            .insert({
+              class_id: classData.id,
+              start_time: new Date().toISOString(),
+              teacher_latitude,
+              teacher_longitude,
+              location_radius,
+            })
+            .select()
+            .single();
+
+          if (!sessionError && newSession?.id) {
+            // Update classes.is_active with the new session_id
+            const { error: updateClassError } = await supabase
+              .from("classes")
+              .update({ is_active: newSession.id })
+              .eq("id", classData.id);
+
+            if (!updateClassError) {
+              onStatusChange();
+              setDashboardResetFlag(false);
+              toast({
+                title: "Class Started",
+                description: `Session started. Location & radius set (${location_radius}m). Students can now check-in.`,
+              });
+            } else {
+              toast({
+                title: "Error",
+                description: "Failed to start class.",
+                variant: "destructive",
+              });
+            }
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to create session.",
+              variant: "destructive",
+            });
+          }
+          setLocationLoading(false);
+        },
+        (err) => {
+          setLocationLoading(false);
           toast({
-            title: "Class Started",
-            description: "Session started. Students can mark attendance.",
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to start class.",
-            variant: "destructive",
+            title: "Geolocation Error",
+            description: err.message || "Could not get your location.",
+            variant: "destructive"
           });
         }
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to create session.",
-          variant: "destructive",
-        });
-      }
+      );
     }
   };
 

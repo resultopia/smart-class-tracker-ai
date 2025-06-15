@@ -64,21 +64,30 @@ export type Database = {
           created_at: string
           end_time: string | null
           id: string
+          location_radius: number | null
           start_time: string
+          teacher_latitude: number | null
+          teacher_longitude: number | null
         }
         Insert: {
           class_id: string
           created_at?: string
           end_time?: string | null
           id?: string
+          location_radius?: number | null
           start_time: string
+          teacher_latitude?: number | null
+          teacher_longitude?: number | null
         }
         Update: {
           class_id?: string
           created_at?: string
           end_time?: string | null
           id?: string
+          location_radius?: number | null
           start_time?: string
+          teacher_latitude?: number | null
+          teacher_longitude?: number | null
         }
         Relationships: [
           {
