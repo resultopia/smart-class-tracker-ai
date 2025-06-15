@@ -12,6 +12,7 @@ import UserInfo from "@/components/UserInfo";
 import { getStudentActiveClassSupabase } from "@/lib/class/getStudentActiveClassSupabase";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateDistanceMeters } from "@/utils/geolocation";
+import StudentLocationVerifier from "@/components/StudentLocationVerifier";
 
 const StudentAttendance = () => {
   const { currentUser, logout } = useAuth();
@@ -85,11 +86,11 @@ const StudentAttendance = () => {
         .select("teacher_latitude, teacher_longitude, location_radius")
         .eq("id", studentClass.isActive)
         .maybeSingle();
-      if (!error && session?.teacher_latitude && session?.teacher_longitude && session?.location_radius) {
+      if (!error && session?.teacher_latitude != null && session?.teacher_longitude != null && session?.location_radius != null) {
         setSessionLocation({
-          lat: parseFloat(session.teacher_latitude),
-          lng: parseFloat(session.teacher_longitude),
-          radius: parseInt(session.location_radius, 10),
+          lat: Number(session.teacher_latitude),
+          lng: Number(session.teacher_longitude),
+          radius: Number(session.location_radius),
         });
       } else {
         setSessionLocation(null);
@@ -233,47 +234,70 @@ const StudentAttendance = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* NEW: Show distance warning */}
-                    {sessionLocation && (
-                      <div className="text-center text-xs text-muted-foreground mb-2">
-                        Attendance allowed within {sessionLocation.radius} meters of teacher's location.
-                        <br />
-                        {checkingDistance ? (
-                          <span className="text-primary">Checking your location...</span>
-                        ) : distanceStatus === 'valid' ? (
-                          <span className="text-green-600">You are within range!</span>
-                        ) : distanceStatus === 'out' ? (
-                          <span className="text-red-600">You are <b>not</b> within attendance range.</span>
-                        ) : distanceStatus === 'location-error' ? (
-                          <span className="text-destructive">Could not get your location.</span>
-                        ) : (
-                          ""
-                        )}
-                      </div>
-                    )}
-                    <p className="text-center text-muted-foreground mb-4">
-                      Upload your photo to mark attendance
-                    </p>
-                    <ImageUpload onImageSelected={handleImageSelected} />
-                    <Button 
-                      className="w-full mt-4" 
-                      disabled={
-                        !imageBase64 || 
-                        processingStatus === 'processing' ||
-                        // Block if geolocation required and not valid
-                        (!activeClass.isOnlineMode && sessionLocation && distanceStatus !== 'valid')
-                      }
-                      onClick={submitAttendance}
-                    >
-                      {processingStatus === 'processing' ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Verifying...
-                        </>
+                    {sessionLocation ? (
+                      // If no location verified yet: show the professional prompt
+                      distanceStatus !== "valid" ? (
+                        <StudentLocationVerifier
+                          sessionLocation={sessionLocation}
+                          onResult={(result, coords) => {
+                            setDistanceStatus(result);
+                            if (coords) setStudentCoords(coords);
+                          }}
+                        />
                       ) : (
-                        'Submit Attendance'
-                      )}
-                    </Button>
+                        // If valid, show regular check-in UI
+                        <>
+                          <div className="text-center text-xs text-muted-foreground mb-2">
+                            Attendance allowed within {sessionLocation.radius} meters of teacher's location.
+                            <span className="text-green-600 block">You are within range!</span>
+                          </div>
+                          <p className="text-center text-muted-foreground mb-4">
+                            Upload your photo to mark attendance
+                          </p>
+                          <ImageUpload onImageSelected={handleImageSelected} />
+                          <Button 
+                            className="w-full mt-4" 
+                            disabled={
+                              !imageBase64 || processingStatus === 'processing'
+                            }
+                            onClick={submitAttendance}
+                          >
+                            {processingStatus === 'processing' ? (
+                              <>
+                                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                Verifying...
+                              </>
+                            ) : (
+                              'Submit Attendance'
+                            )}
+                          </Button>
+                        </>
+                      )
+                    ) : (
+                      // If for some reason there is no location restriction, fallback to old UI
+                      <>
+                        <p className="text-center text-muted-foreground mb-4">
+                          Upload your photo to mark attendance
+                        </p>
+                        <ImageUpload onImageSelected={handleImageSelected} />
+                        <Button 
+                          className="w-full mt-4" 
+                          disabled={
+                            !imageBase64 || processingStatus === 'processing'
+                          }
+                          onClick={submitAttendance}
+                        >
+                          {processingStatus === 'processing' ? (
+                            <>
+                              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            'Submit Attendance'
+                          )}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </>
