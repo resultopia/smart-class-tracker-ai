@@ -27,7 +27,9 @@ const StudentLocationVerifier: React.FC<StudentLocationVerifierProps> = ({ sessi
         const { latitude, longitude } = pos.coords;
         const dist = calculateDistanceMeters(latitude, longitude, sessionLocation.lat, sessionLocation.lng);
         setDistance(dist);
-        if (dist <= sessionLocation.radius) {
+
+        // Allow attendance if within (radius + 30m) to accommodate error
+        if (dist <= sessionLocation.radius + 30) {
           setStatus("valid");
           onResult("valid", { lat: latitude, lng: longitude });
         } else {

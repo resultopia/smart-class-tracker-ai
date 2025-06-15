@@ -257,20 +257,21 @@ const StudentAttendance = () => {
                               Your distance:{" "}
                               <span className="font-bold">
                                 {studentCoords
-                                  ? (
-                                      Math.round(
+                                  ? (() => {
+                                      // Distance between studentCoords and sessionLocation
+                                      const y = Math.round(
                                         10 *
-                                        (
-                                          // Calculate distance using current studentCoords and sessionLocation
                                           calculateDistanceMeters(
                                             studentCoords.lat,
                                             studentCoords.lng,
                                             sessionLocation.lat,
                                             sessionLocation.lng
                                           )
-                                        )
-                                      ) / 10
-                                    ).toFixed(1)
+                                      ) / 10;
+                                      // Show min(y, sessionLocation.radius) if attendance allowed (distanceStatus === 'valid')
+                                      // (It is definitely 'valid' if we are rendering here)
+                                      return Math.min(y, sessionLocation.radius).toFixed(1);
+                                    })()
                                   : "--"
                                 } meters
                               </span>
