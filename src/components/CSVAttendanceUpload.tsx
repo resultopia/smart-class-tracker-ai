@@ -1,11 +1,12 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Upload, FileText, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { markAttendance, getUserById } from "@/lib/data";
+import { markAttendance } from "@/lib/data";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CSVAttendanceUploadProps {
   classId: string;
@@ -20,44 +21,55 @@ const CSVAttendanceUpload = ({ classId, onAttendanceMarked }: CSVAttendanceUploa
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Helper to get profile by username (user_id) and return the uuid
+  const getUuidByUsername = async (username: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", username)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.id;
+  };
+
   const processCSV = async (csvText: string) => {
     setIsProcessing(true);
     const lines = csvText.trim().split('\n');
     const validStudents: string[] = [];
-    const invalidStudents: string[] = [];
+    const invalidStudentsArr: string[] = [];
     
     for (const line of lines) {
       const trimmedLine = line.trim();
       if (trimmedLine) {
         const columns = trimmedLine.split(',');
         const username = columns[0].trim().replace(/"/g, ''); // Remove quotes
-        
         if (username) {
-          // Check if user exists
-          const user = await getUserById(username); // <== await here
-          if (user && user.role === "student") {
-            // Mark attendance
-            const success = markAttendance(classId, username, "present");
+          // 1. Look up UUID by username
+          const uuid = await getUuidByUsername(username);
+          if (uuid) {
+            // 2. Mark attendance using UUID in Supabase
+            const success = await markAttendance(classId, uuid, "present");
             if (success) {
               validStudents.push(username);
             } else {
-              invalidStudents.push(username);
+              invalidStudentsArr.push(username);
             }
           } else {
-            invalidStudents.push(username);
+            invalidStudentsArr.push(username);
           }
         }
       }
     }
     
     setProcessedStudents(validStudents);
-    setInvalidStudents(invalidStudents);
+    setInvalidStudents(invalidStudentsArr);
     
     if (validStudents.length > 0) {
       onAttendanceMarked();
       toast({
         title: "Attendance Marked",
-        description: `${validStudents.length} student(s) marked present${invalidStudents.length > 0 ? `, ${invalidStudents.length} invalid entries` : ''}.`
+        description: `${validStudents.length} student(s) marked present${invalidStudentsArr.length > 0 ? `, ${invalidStudentsArr.length} invalid entries` : ''}.`
       });
     } else {
       toast({
@@ -66,7 +78,6 @@ const CSVAttendanceUpload = ({ classId, onAttendanceMarked }: CSVAttendanceUploa
         variant: "destructive"
       });
     }
-    
     setIsProcessing(false);
   };
 
@@ -91,7 +102,6 @@ const CSVAttendanceUpload = ({ classId, onAttendanceMarked }: CSVAttendanceUploa
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileUpload(files[0]);
