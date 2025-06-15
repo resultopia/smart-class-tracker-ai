@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -44,6 +44,7 @@ const ClassCard = ({
   const [editRadiusLoading, setEditRadiusLoading] = useState(false);
   const [showStartSessionRadiusDialog, setShowStartSessionRadiusDialog] = useState(false);
   const [startSessionRadius, setStartSessionRadius] = useState<number>(100);
+  const [activeSessionRadius, setActiveSessionRadius] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Handler to start/stop class and manage sessions
@@ -216,7 +217,26 @@ const ClassCard = ({
 
   const studentCount = classData.studentIds.length;
 
-  // Active session radius not available in Class, so not used here.
+  // When a session is active, fetch its current radius from Supabase on mount or when classData.isActive changes
+  useEffect(() => {
+    const fetchRadius = async () => {
+      if (classData.isActive) {
+        const { data, error } = await supabase
+          .from("class_sessions")
+          .select("location_radius")
+          .eq("id", classData.isActive)
+          .single();
+        if (!error && data && data.location_radius) {
+          setActiveSessionRadius(data.location_radius);
+        } else {
+          setActiveSessionRadius(100); // fallback default
+        }
+      } else {
+        setActiveSessionRadius(null);
+      }
+    };
+    fetchRadius();
+  }, [classData.isActive]);
 
   return (
     <>
@@ -244,8 +264,9 @@ const ClassCard = ({
             <div className="flex items-center gap-2 mt-2 bg-muted px-3 py-2 rounded-md shadow-sm border border-muted">
               <span className="text-xs text-muted-foreground font-semibold">
                 Attendance Radius:
-                {/* Can't show value unless you fetch the radius from active session elsewhere */}
-                <span className="ml-1 text-primary font-bold">Session radius set</span>
+                <span className="ml-1 text-primary font-bold">
+                  {activeSessionRadius ? `${activeSessionRadius} meters` : "—"}
+                </span>
               </span>
               <Button size="sm" variant="outline"
                 className="ml-3"
@@ -334,7 +355,7 @@ const ClassCard = ({
         <RadiusEditDialog
           open={showRadiusDialog}
           onOpenChange={setShowRadiusDialog}
-          defaultRadius={100}
+          defaultRadius={activeSessionRadius ?? 100}
           onApply={handleApplyRadius}
           loading={editRadiusLoading}
           min={10}
