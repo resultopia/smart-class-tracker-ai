@@ -246,9 +246,38 @@ const StudentAttendance = () => {
                         />
                       ) : (
                         <>
-                          <div className="text-center text-xs text-muted-foreground mb-2">
-                            Attendance allowed within {sessionLocation.radius} meters of teacher's location.
-                            <span className="text-green-600 block">You are within range!</span>
+                          <div className="bg-green-50 border border-green-200 rounded-xl py-5 px-4 mb-2 flex flex-col items-center justify-center shadow-sm">
+                            <span className="text-green-700 font-extrabold text-lg sm:text-2xl mb-1 tracking-wide flex items-center gap-2">
+                              Attendance Allowed!
+                            </span>
+                            <span className="text-base font-medium text-green-800">
+                              You are within <span className="font-bold">{sessionLocation.radius} meters</span> of teacher's location.
+                            </span>
+                            <span className="block text-green-700 font-semibold mt-1 text-sm sm:text-base">
+                              Your distance:{" "}
+                              <span className="font-bold">
+                                {studentCoords
+                                  ? (
+                                      Math.round(
+                                        10 *
+                                        (
+                                          // Calculate distance using current studentCoords and sessionLocation
+                                          calculateDistanceMeters(
+                                            studentCoords.lat,
+                                            studentCoords.lng,
+                                            sessionLocation.lat,
+                                            sessionLocation.lng
+                                          )
+                                        )
+                                      ) / 10
+                                    ).toFixed(1)
+                                  : "--"
+                                } meters
+                              </span>
+                            </span>
+                            <span className="inline-block mt-3 px-3 py-1 rounded-lg bg-green-100 font-semibold text-green-700 text-base shadow">
+                              ✔ You are within range!
+                            </span>
                           </div>
                           <p className="text-center text-muted-foreground mb-4">
                             Upload your photo to mark attendance
