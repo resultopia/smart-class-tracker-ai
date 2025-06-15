@@ -17,6 +17,7 @@ import OnlineModeToggle from "./OnlineModeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { updateClassParticipantsSupabase } from "@/lib/class/updateClassParticipantsSupabase";
 import { calculateDistanceMeters } from "@/utils/geolocation";
+import RadiusEditDialog from "./RadiusEditDialog";
 
 interface ClassCardProps {
   classData: Class;
@@ -33,6 +34,8 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
   const [showEditParticipants, setShowEditParticipants] = useState(false);
   const [dashboardResetFlag, setDashboardResetFlag] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [showRadiusDialog, setShowRadiusDialog] = useState(false);
+  const [editRadiusLoading, setEditRadiusLoading] = useState(false);
   const { toast } = useToast();
 
   // Handler to start/stop class and manage sessions (now with session_id logic)
@@ -177,8 +180,38 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
     setShowCSVUploadDialog(false);
   };
 
+  // New handler to update the radius in DB for active session (class_sessions)
+  const handleApplyRadius = async (newRadius: number) => {
+    if (!classData.isActive) return;
+    setEditRadiusLoading(true);
+    const { error } = await supabase
+      .from("class_sessions")
+      .update({ location_radius: newRadius })
+      .eq("id", classData.isActive);
+
+    setEditRadiusLoading(false);
+    if (!error) {
+      toast({
+        title: "Radius Updated",
+        description: `Attendance radius set to ${newRadius} meters.`,
+      });
+      onStatusChange();
+    } else {
+      toast({
+        title: "Failed to Update Radius",
+        description: "Could not update location radius. Try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // All student IDs come from classData
   const studentCount = classData.studentIds.length;
+
+  // Find session radius from the classData (assume presence of isActive/session info)
+  const sessionRadius = typeof classData.sessionRadius === "number"
+    ? classData.sessionRadius
+    : (classData.location_radius ? classData.location_radius : 50); // fallback
 
   return (
     <>
@@ -201,6 +234,22 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
           />
           {classData.isOnlineMode && (
             <ClassOnlineModeAlert />
+          )}
+          {/* --- New: Show attendance radius and edit button if active class with location --- */}
+          {classData.isActive && typeof classData.location_radius === "number" && (
+            <div className="flex items-center gap-2 mt-2 bg-muted px-3 py-2 rounded-md shadow-sm border border-muted">
+              <span className="text-xs text-muted-foreground font-semibold">
+                Attendance Radius:
+                <span className="ml-1 text-primary font-bold">{classData.location_radius}m</span>
+              </span>
+              <Button size="sm" variant="outline"
+                className="ml-3"
+                onClick={() => setShowRadiusDialog(true)}
+                type="button"
+              >
+                Edit Radius
+              </Button>
+            </div>
           )}
         </CardContent>
         <CardFooter>
@@ -280,6 +329,19 @@ const ClassCard = ({ classData, teacherId, onStatusChange, anyClassActive = fals
           }
         }}
       />
+
+      {/* --- NEW: Radius Edit Dialog --- */}
+      {classData.isActive && typeof classData.location_radius === "number" && (
+        <RadiusEditDialog
+          open={showRadiusDialog}
+          onOpenChange={setShowRadiusDialog}
+          defaultRadius={classData.location_radius}
+          onApply={handleApplyRadius}
+          loading={editRadiusLoading}
+          min={10}
+          max={100}
+        />
+      )}
     </>
   );
 };
