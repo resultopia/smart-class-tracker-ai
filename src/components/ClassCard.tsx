@@ -19,6 +19,8 @@ import { updateClassParticipantsSupabase } from "@/lib/class/updateClassParticip
 import { calculateDistanceMeters } from "@/utils/geolocation";
 import RadiusEditDialog from "./RadiusEditDialog";
 import { Button } from "@/components/ui/button";
+import AttendanceDialogs from "./AttendanceDialogs";
+import SessionRadiusDialog from "./SessionRadiusDialog";
 
 interface ClassCardProps {
   classData: Class;
@@ -240,6 +242,7 @@ const ClassCard = ({
 
   return (
     <>
+      {/* Main Card and content unchanged */}
       <Card className={classData.isActive ? "border-primary" : ""}>
         <ClassCardHeader
           classData={classData}
@@ -259,7 +262,6 @@ const ClassCard = ({
           {classData.isOnlineMode && (
             <ClassOnlineModeAlert />
           )}
-          {/* Show attendance radius and edit button if active class */}
           {classData.isActive && (
             <div className="flex items-center gap-2 mt-2 bg-muted px-3 py-2 rounded-md shadow-sm border border-muted">
               <span className="text-xs text-muted-foreground font-semibold">
@@ -293,40 +295,19 @@ const ClassCard = ({
         </CardFooter>
       </Card>
 
-      {/* Dialogs */}
-      <Dialog open={showCSVUploadDialog} onOpenChange={setShowCSVUploadDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Upload Attendance CSV - {classData.name}</DialogTitle>
-          </DialogHeader>
-          <CSVAttendanceUpload 
-            classId={classData.id} 
-            onAttendanceMarked={handleCSVUploadComplete}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAttendanceDashboard} onOpenChange={setShowAttendanceDashboard}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Attendance Dashboard - {classData.name}</DialogTitle>
-          </DialogHeader>
-          <AttendanceDashboard 
-            classData={classData}
-            resetFlag={dashboardResetFlag}
-            onResetDone={() => setDashboardResetFlag(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAttendanceHistory} onOpenChange={setShowAttendanceHistory}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Attendance History - {classData.name}</DialogTitle>
-          </DialogHeader>
-          <AttendanceHistory classData={classData} />
-        </DialogContent>
-      </Dialog>
+      {/* Attendance Dialogs grouped */}
+      <AttendanceDialogs
+        classData={classData}
+        dashboardOpen={showAttendanceDashboard}
+        setDashboardOpen={setShowAttendanceDashboard}
+        historyOpen={showAttendanceHistory}
+        setHistoryOpen={setShowAttendanceHistory}
+        csvDialogOpen={showCSVUploadDialog}
+        setCSVDialogOpen={setShowCSVUploadDialog}
+        dashboardResetFlag={dashboardResetFlag}
+        onDashboardResetDone={() => setDashboardResetFlag(false)}
+        onCSVUploadComplete={handleCSVUploadComplete}
+      />
 
       <EditParticipantsDialog
         open={showEditParticipants}
@@ -350,7 +331,7 @@ const ClassCard = ({
         }}
       />
 
-      {/* --- Radius Edit Dialog: shown if active session --- */}
+      {/* Edit radius of active session */}
       {classData.isActive && (
         <RadiusEditDialog
           open={showRadiusDialog}
@@ -363,17 +344,17 @@ const ClassCard = ({
         />
       )}
 
-      {/* --- Start Session Radius Dialog: shown before creating new session --- */}
-      <RadiusEditDialog
+      {/* SessionRadiusDialog for start class flow */}
+      <SessionRadiusDialog
         open={showStartSessionRadiusDialog}
-        onOpenChange={(open) => setShowStartSessionRadiusDialog(open)}
         defaultRadius={100}
+        onOpenChange={setShowStartSessionRadiusDialog}
+        loading={locationLoading}
         onApply={async (radius) => {
           setShowStartSessionRadiusDialog(false);
           setStartSessionRadius(radius);
           await startClassSession(radius);
         }}
-        loading={locationLoading}
         min={10}
         max={100}
       />
