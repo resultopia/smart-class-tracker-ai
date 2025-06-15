@@ -20,8 +20,8 @@ const CSVUpload = ({ onStudentsUploaded, existingStudents = [] }: CSVUploadProps
 
   // Helper: checks if a string is a header-ish value
   const looksLikeHeader = (cell: string) => {
+    // This function is no longer used, but keep it in case you want to display warnings in the future.
     const s = cell.trim().toLowerCase();
-    // Typical keywords seen in header
     return [
       "username", "user_id", "userid", "student", 
       "studentid", "student_id", "id", "name"
@@ -45,19 +45,13 @@ const CSVUpload = ({ onStudentsUploaded, existingStudents = [] }: CSVUploadProps
       return;
     }
 
+    // Always process every row, do not skip based on header detection
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
 
       const columns = line.split(',');
-      const firstCell = columns[0]?.trim().replace(/"/g, "");
-      
-      // If this is the first row and it looks like a header, SKIP it and continue (DO NOT add as student)
-      if (i === 0 && firstCell && looksLikeHeader(firstCell)) {
-        continue;
-      }
-      // Otherwise, if firstCell is present, treat as studentId
-      const studentId = firstCell;
+      const studentId = columns[0]?.trim().replace(/"/g, "");
       if (studentId) {
         if (existingStudents.includes(studentId)) {
           foundDuplicates.push(studentId);
