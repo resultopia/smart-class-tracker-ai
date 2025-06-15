@@ -25,7 +25,7 @@ const RadiusEditDialog: React.FC<RadiusEditDialogProps> = ({
   onOpenChange,
   defaultRadius,
   onApply,
-  min = 0,
+  min = 30,
   max = 300,
   loading = false
 }) => {

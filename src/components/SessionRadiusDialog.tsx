@@ -16,7 +16,7 @@ const SessionRadiusDialog: React.FC<SessionRadiusDialogProps> = ({
   open,
   defaultRadius,
   loading,
-  min = 0,
+  min = 30,
   max = 300,
   onApply,
   onOpenChange,
