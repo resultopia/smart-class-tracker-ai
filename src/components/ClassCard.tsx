@@ -476,8 +476,8 @@ const ClassCard = ({
           defaultRadius={activeSessionRadius ?? 100}
           onApply={handleApplyRadius}
           loading={editRadiusLoading}
-          min={10}
-          max={100}
+          min={0}
+          max={300}
         />
       )}
 
@@ -493,8 +493,8 @@ const ClassCard = ({
             setStartSessionRadius(radius);
             await startClassSession(radius);
           }}
-          min={10}
-          max={100}
+          min={0}
+          max={300}
         />
       )}
     </>

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -26,8 +25,8 @@ const RadiusEditDialog: React.FC<RadiusEditDialogProps> = ({
   onOpenChange,
   defaultRadius,
   onApply,
-  min = 10,
-  max = 100,
+  min = 0,
+  max = 300,
   loading = false
 }) => {
   const [radius, setRadius] = useState<number>(defaultRadius);
