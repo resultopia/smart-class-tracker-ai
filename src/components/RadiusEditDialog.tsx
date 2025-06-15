@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Dialog,
@@ -31,7 +32,6 @@ const RadiusEditDialog: React.FC<RadiusEditDialogProps> = ({
 }) => {
   const [radius, setRadius] = useState<number>(defaultRadius);
 
-  // Keep slider in sync with defaultRadius
   React.useEffect(() => {
     setRadius(defaultRadius);
   }, [defaultRadius, open]);
@@ -77,10 +77,10 @@ const RadiusEditDialog: React.FC<RadiusEditDialogProps> = ({
               await onApply(radius);
               onOpenChange(false);
             }}
-            loading={loading ? "true" : undefined}
+            disabled={loading}
             type="button"
           >
-            Save
+            {loading ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
