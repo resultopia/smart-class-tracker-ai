@@ -78,7 +78,7 @@ const StudentLocationVerifier: React.FC<StudentLocationVerifierProps> = ({ sessi
           )}
           <Button onClick={handleCheck}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            {status === "checking" ? "Checking..." : "Check Location"}
+            Check Location
           </Button>
         </div>
       );
