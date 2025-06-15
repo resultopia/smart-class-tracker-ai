@@ -234,8 +234,8 @@ const StudentAttendance = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {/* Only require geo/radius if NOT online mode and session location is set */}
                     {sessionLocation ? (
-                      // If no location verified yet: show the professional prompt
                       distanceStatus !== "valid" ? (
                         <StudentLocationVerifier
                           sessionLocation={sessionLocation}
@@ -245,7 +245,6 @@ const StudentAttendance = () => {
                           }}
                         />
                       ) : (
-                        // If valid, show regular check-in UI
                         <>
                           <div className="text-center text-xs text-muted-foreground mb-2">
                             Attendance allowed within {sessionLocation.radius} meters of teacher's location.
@@ -274,7 +273,6 @@ const StudentAttendance = () => {
                         </>
                       )
                     ) : (
-                      // If for some reason there is no location restriction, fallback to old UI
                       <>
                         <p className="text-center text-muted-foreground mb-4">
                           Upload your photo to mark attendance
