@@ -173,6 +173,103 @@ const StudentAttendance = () => {
     }
   };
 
+  // Add this helper function inside the component but before return
+  const renderAttendanceAllowedBox = () => {
+    if (!sessionLocation || !studentCoords) return null;
+
+    // The base allowed radius set by teacher
+    const baseRadius = sessionLocation.radius;
+
+    // The "actual" radius considered for attendance check is base + 40
+    const effectiveRadius = baseRadius + 40;
+
+    // Calculate live distance student --> teacher
+    const studentDistance = calculateDistanceMeters(
+      studentCoords.lat,
+      studentCoords.lng,
+      sessionLocation.lat,
+      sessionLocation.lng
+    );
+
+    // Flags
+    const withinBaseRadius = studentDistance <= baseRadius;
+    const withinEffectiveRadius = studentDistance <= effectiveRadius;
+
+    // Message color
+    const mainColor = withinBaseRadius
+      ? "text-green-700"
+      : "text-yellow-700";
+    const boxBg = withinBaseRadius
+      ? "bg-green-50 border-green-200"
+      : "bg-yellow-50 border-yellow-200";
+    const shadow = withinBaseRadius
+      ? "shadow-green-100"
+      : "shadow-yellow-100";
+    const icon =
+      withinBaseRadius ? (
+        <span className="text-3xl leading-none mr-2">✅</span>
+      ) : withinEffectiveRadius ? (
+        <span className="text-3xl leading-none mr-2">⚠️</span>
+      ) : (
+        <span className="text-3xl leading-none mr-2">❌</span>
+      );
+
+    return (
+      <div
+        className={`w-full rounded-2xl py-6 px-5 mb-3 flex flex-col items-center justify-center border ${boxBg} ${shadow}`}
+      >
+        <div className={`flex items-center gap-3 mb-1`}>
+          {icon}
+          <span
+            className={`font-black text-2xl md:text-3xl ${mainColor} tracking-widest uppercase`}
+            style={{
+              letterSpacing: "0.05em",
+              textShadow:
+                "0 1px 0 #fff, 0 2px 7px rgba(0,120,66,0.06)",
+            }}
+          >
+            Attendance Allowed!
+          </span>
+        </div>
+        <span
+          className={`block font-extrabold text-xl md:text-2xl ${mainColor}`}
+        >
+          Attendance allowed <span className="underline decoration-wavy decoration-yellow-500">within {baseRadius} meters</span> of teacher's location.
+        </span>
+        <span
+          className={`mt-2 block text-md md:text-lg font-semibold text-gray-800`}
+        >
+          Your distance:{" "}
+          <span className="text-primary font-extrabold text-lg md:text-2xl">
+            {studentDistance.toFixed(1)} meters
+          </span>
+        </span>
+        {withinBaseRadius ? (
+          <span className="mt-4 inline-block px-4 py-2 rounded-full bg-green-600 text-white font-semibold text-lg shadow">
+            ✔ You are within official attendance range!
+          </span>
+        ) : withinEffectiveRadius ? (
+          <span className="mt-4 inline-block px-4 py-2 rounded-full bg-yellow-500 text-white font-semibold text-lg shadow">
+            ⚠️ You are just outside the official {baseRadius}m range,
+            but <span className="underline">still allowed</span>!
+          </span>
+        ) : (
+          <span className="mt-4 inline-block px-4 py-2 rounded-full bg-red-500 text-white font-semibold text-lg shadow">
+            ❌ You are not within the allowed range.
+          </span>
+        )}
+        <div className="mt-2 text-xs text-gray-500">
+          <span>
+            <b>Note:</b> If your distance is within {baseRadius}
+            m, you're officially in range.<br />
+            If you are between {baseRadius}m and {effectiveRadius}m,
+            you will still be allowed for flexibility.
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md">
@@ -246,40 +343,8 @@ const StudentAttendance = () => {
                         />
                       ) : (
                         <>
-                          <div className="bg-green-50 border border-green-200 rounded-xl py-5 px-4 mb-2 flex flex-col items-center justify-center shadow-sm">
-                            <span className="text-green-700 font-extrabold text-lg sm:text-2xl mb-1 tracking-wide flex items-center gap-2">
-                              Attendance Allowed!
-                            </span>
-                            <span className="text-base font-medium text-green-800">
-                              You are within <span className="font-bold">{sessionLocation.radius} meters</span> of teacher's location.
-                            </span>
-                            <span className="block text-green-700 font-semibold mt-1 text-sm sm:text-base">
-                              Your distance:{" "}
-                              <span className="font-bold">
-                                {studentCoords
-                                  ? (
-                                      Math.round(
-                                        10 *
-                                        (
-                                          // Calculate distance using current studentCoords and sessionLocation
-                                          calculateDistanceMeters(
-                                            studentCoords.lat,
-                                            studentCoords.lng,
-                                            sessionLocation.lat,
-                                            sessionLocation.lng
-                                          )
-                                        )
-                                      ) / 10
-                                    ).toFixed(1)
-                                  : "--"
-                                } meters
-                              </span>
-                            </span>
-                            <span className="inline-block mt-3 px-3 py-1 rounded-lg bg-green-100 font-semibold text-green-700 text-base shadow">
-                              ✔ You are within range!
-                            </span>
-                          </div>
-                          <p className="text-center text-muted-foreground mb-4">
+                          {renderAttendanceAllowedBox()}
+                          <p className="text-center text-muted-foreground mb-4 font-medium text-base">
                             Upload your photo to mark attendance
                           </p>
                           <ImageUpload onImageSelected={handleImageSelected} />
