@@ -1,30 +1,40 @@
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceRecord } from './types';
 
-// Mark attendance via Supabase using session_id
+// Mark attendance via Supabase using the class's currently active session_id (uuid)
 export const markAttendance = async (
   classId: string,
   studentId: string,
   status: "present" | "absent" = "present"
 ) => {
   try {
-    const session = await getOrCreateTodaySession(classId);
-    if (!session) {
-      console.error("No active session found for today.");
+    // Always fetch the currently active session from the classes table
+    const { data: classRow, error: classError } = await supabase
+      .from("classes")
+      .select("is_active")
+      .eq("id", classId)
+      .single();
+
+    if (classError || !classRow || !classRow.is_active) {
+      console.error("No active session found for this class. Cannot mark attendance.");
       return false;
     }
+
+    const sessionId = classRow.is_active;
+
     // Find if record for this student/session exists
     const { data: existing, error: selectError } = await supabase
       .from("attendance_records")
       .select("id")
       .eq("class_id", classId)
-      .eq("student_id", studentId)
-      .eq("session_id", session.id);
+      .eq("student_id", studentId) // <-- always use UUID
+      .eq("session_id", sessionId);
 
     if (selectError) {
       console.error("Error fetching attendance record:", selectError.message);
       return false;
     }
+
     if (existing && existing.length > 0) {
       // Update
       const { error: updateError } = await supabase
@@ -40,10 +50,10 @@ export const markAttendance = async (
       const { error: insertError } = await supabase.from("attendance_records").insert([
         {
           class_id: classId,
-          student_id: studentId,
+          student_id: studentId, // <-- always use UUID
           status: status,
           timestamp: new Date().toISOString(),
-          session_id: session.id,
+          session_id: sessionId,
         },
       ]);
       if (insertError) {
