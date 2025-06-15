@@ -396,13 +396,18 @@ const ClassCard = ({
               <span className="text-xs text-muted-foreground font-semibold">
                 Attendance Radius:
                 <span className="ml-1 text-primary font-bold">
-                  {activeSessionRadius ? `${activeSessionRadius} meters` : "—"}
+                  {classData.isOnlineMode ? "n/a" : (activeSessionRadius ? `${activeSessionRadius} meters` : "—")}
                 </span>
               </span>
-              <Button size="sm" variant="outline"
-                className="ml-3"
+              <Button
+                size="sm"
+                variant="outline"
+                className={`ml-3 ${classData.isOnlineMode ? "pointer-events-none opacity-50" : ""}`}
                 onClick={() => setShowRadiusDialog(true)}
                 type="button"
+                disabled={classData.isOnlineMode}
+                aria-disabled={classData.isOnlineMode}
+                title={classData.isOnlineMode ? "Edit disabled in online mode" : "Edit Attendance Radius"}
               >
                 Edit Radius
               </Button>
