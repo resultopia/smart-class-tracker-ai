@@ -222,10 +222,20 @@ const ClassCard = ({
             description: `Attendance radius set to ${newRadius} meters. Location saved.`,
           });
           onStatusChange();
+
+          // Fetch latest location_radius and update activeSessionRadius immediately
+          const { data, error: fetchError } = await supabase
+            .from("class_sessions")
+            .select("location_radius")
+            .eq("id", classData.isActive)
+            .single();
+          if (!fetchError && data && data.location_radius) {
+            setActiveSessionRadius(data.location_radius);
+          }
+
           // If radius dialog was opened for toggling online mode OFF, do that now
           if (pendingOnlineModeSwitch === "off") {
             setPendingOnlineModeSwitch(null);
-            // Actually toggle now
             await supabase
               .from("classes")
               .update({ is_online_mode: false })
