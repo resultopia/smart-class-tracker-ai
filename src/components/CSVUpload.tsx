@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,17 +18,48 @@ const CSVUpload = ({ onStudentsUploaded, existingStudents = [] }: CSVUploadProps
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Helper: checks if a string is a header-ish value
+  const looksLikeHeader = (cell: string) => {
+    const s = cell.trim().toLowerCase();
+    // Typical keywords seen in header
+    return [
+      "username", "user_id", "userid", "student", 
+      "studentid", "student_id", "id", "name"
+    ].some(header => s.includes(header));
+  };
+
   const processCSV = (csvText: string) => {
     const lines = csvText.trim().split('\n');
-    const studentIds: string[] = [];
-    const foundDuplicates: string[] = [];
-    
-    lines.forEach((line, index) => {
-      const trimmedLine = line.trim();
-      if (trimmedLine && index > 0) { // Skip header if present
-        const columns = trimmedLine.split(',');
+    let studentIds: string[] = [];
+    let foundDuplicates: string[] = [];
+
+    // Handle empty file edge case
+    if (lines.length === 0) {
+      setUploadedStudents([]);
+      setDuplicates([]);
+      toast({
+        title: "No Valid Students",
+        description: "No rows found in the CSV file.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Process the first row, check if it's a header
+    let startIdx = 0;
+    const firstRow = lines[0].trim();
+    const firstCell = firstRow.split(',')[0]?.trim().replace(/"/g, '');
+    if (firstCell && looksLikeHeader(firstCell)) {
+      // Looks like header, skip it
+      startIdx = 1;
+    }
+
+    for (let i = startIdx; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line) {
+        const columns = line.split(',');
         const studentId = columns[0].trim().replace(/"/g, ''); // Remove quotes
-        
+
         if (studentId) {
           if (existingStudents.includes(studentId)) {
             foundDuplicates.push(studentId);
@@ -38,11 +68,11 @@ const CSVUpload = ({ onStudentsUploaded, existingStudents = [] }: CSVUploadProps
           }
         }
       }
-    });
-    
+    }
+
     setUploadedStudents(studentIds);
     setDuplicates(foundDuplicates);
-    
+
     if (studentIds.length > 0) {
       onStudentsUploaded(studentIds);
       toast({
